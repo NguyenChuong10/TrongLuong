@@ -1,0 +1,31 @@
+# Thư mục thư viện (TUYỆT ĐỐI KHÔNG ĐẨY LÊN GIT)
+node_modules/
+**/node_modules/
+
+# Thư mục ảnh và video upload cục bộ (Tránh đẩy ảnh cá nhân lên Git)
+server/upload/
+server/uploads/
+**/upload/
+**/uploads/
+
+# File tạm của hệ điều hành macOS & Windows
+.DS_Store
+Thumbs.db
+*.log
+
+# File build tạm và file đệm di động
+app/.expo/
+app/ios/build/
+desktop/dist/
+app/ios/DerivedData/
+build/
+
+# File cấu hình môi trường bảo mật (Chứa API key cá nhân)
+.env
+.env.local
+**/.*env*
+**/google-key.json
+
+# File Word báo cáo (đã lưu trữ cục bộ)
+*.docx
+Bao_Cao_Nghien_Cuu_TrongLuong_v2.docx

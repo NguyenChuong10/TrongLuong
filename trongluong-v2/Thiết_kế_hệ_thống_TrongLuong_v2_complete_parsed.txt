@@ -1,0 +1,608 @@
+Thiết kế hệ thống TrongLuong v2.0
+React Native App + Node.js Server + Electron Desktop
+Tài liệu thiết kế chi tiết — Stack chính thức đã chốt
+
+Tổng quan vấn đề cần giải quyết
+Hệ thống cũ (Python + Tkinter) có 3 điểm yếu cốt lõi: giao diện Tkinter đơn luồng dễ đơ khi xử lý file lớn, upload tuần tự (từng file một) gây chậm, và không có realtime — người dùng không biết trạng thái upload. Kiến trúc mới giải quyết cả ba.
+
+Stack chính thức đã chốt:
+Điện thoại: React Native + Expo — 1 codebase, chạy iOS + Android
+iOS: Build bằng Xcode free (MacBook 2017), cài USB vào 3 iPhone, hiệu lực 1 năm
+Android: Build .apk, gửi link cài thẳng
+Server: Node.js + Express trên Windows
+Desktop: Electron (thay Tkinter)
+
+
+Phần 1 — React Native App (Client)
+Tại sao React Native + Expo thay vì web?
+App web (HTML chạy trên trình duyệt điện thoại) bị giới hạn quyền truy cập camera, không thể chọn nhiều file video cùng lúc trên iOS, và không có notification. React Native cho phép dùng native camera API, native file picker, và chạy upload background ngay cả khi tắt màn hình.
+
+Thư viện và lý do chọn:
+expo-camera — truy cập camera native của iOS/Android để quét barcode và chụp ảnh trực tiếp. Expo xử lý permission tự động, không cần config native.
+expo-barcode-scanner (tích hợp trong expo-camera) — decode barcode/QR ngay trên device, không cần internet, không phụ thuộc CDN như html5-qrcode của bản cũ.
+expo-image-picker — mở native gallery để chọn nhiều ảnh/video cùng lúc. Trả về URI gốc của file, hỗ trợ video chất lượng cao.
+axios — HTTP client với hỗ trợ upload multipart/form-data, có onUploadProgress để hiển thị progress bar từng file.
+socket.io-client — kết nối WebSocket để nhận thông báo realtime từ server (upload xong, Drive sync xong, lỗi...) mà không cần polling.
+@react-native-async-storage/async-storage — lưu lịch sử đơn hàng, cache địa chỉ server.
+
+Luồng upload song song:
+Thay vì for file in files: upload(file) như bản cũ, bản mới dùng:
+await Promise.all(files.map(file => uploadFile(file, onProgress)))
+5 file ảnh 3MB mỗi cái: bản cũ ~15 giây (tuần tự), bản mới ~4 giây (song song trên WiFi 50Mbps).
+
+Phần 2 — Node.js Server
+Tại sao Node.js thay vì Python http.server?
+Python's http.server là single-threaded — khi đang xử lý một upload lớn, request mới phải chờ. Node.js event loop xử lý I/O không đồng bộ thực sự, hàng trăm upload đồng thời không block nhau.
+
+Thư viện và lý do chọn:
+express — web framework nhanh nhất Node.js, xử lý routing, middleware, error handling.
+multer — middleware xử lý multipart/form-data (file upload). Config diskStorage ghi file thẳng vào TrongLuong/001/ không qua memory — quan trọng cho video lớn.
+socket.io — WebSocket two-way. Server emit event sau mỗi bước: upload_progress, upload_done, drive_synced, error.
+chokidar — file watcher bằng native OS event (inotify Linux, FSEvents macOS). Khi file mới ghi xong, trigger Drive upload tự động.
+googleapis (Node.js) — Drive API v3. Upload resumable, tạo folder tự động, check duplicate.
+p-queue — hàng đợi Drive upload, concurrency: 3, tránh quota limit.
+better-sqlite3 — SQLite nhúng, lưu metadata đơn hàng. Thay file .txt/.json rải rác.
+zod — validate đầu vào (mã vận đơn, số ký) trước khi xử lý.
+
+Phần 3 — Desktop Panel (Electron)
+Tại sao Electron thay vì Tkinter?
+Tkinter chạy trên main thread của Python. Khi thread đó bận (ghi file, gọi Drive API), UI đơ hoàn toàn. Electron chạy UI trong Chromium renderer process tách biệt — giao diện không bao giờ đơ dù server đang xử lý nặng.
+
+Thư viện và lý do chọn:
+electron — BrowserWindow với alwaysOnTop: true thay thế Tkinter topmost. IPC giữa main process và renderer qua ipcMain/ipcRenderer.
+React (trong renderer) — UI panel viết bằng React component, cập nhật realtime qua socket.io events.
+robotjs — tự động hóa mouse/keyboard native. Thay pyautogui + pywin32 cho JMS automation.
+
+Phần 4 — Realtime khi thay đổi trọng lượng
+Đây là tính năng mới quan trọng. Khi người dùng nhập số ký trên app và cần cập nhật lại:
+
+Luồng cập nhật số ký realtime:
+1. App gửi PATCH /api/orders/:id với { soKy: '12kg' }
+2. Server cập nhật SQLite + đổi tên file .txt
+3. Server emit socket event order_updated
+4. Panel Electron nhận event, re-render card ngay lập tức
+5. Server trigger chokidar watcher
+6. Drive upload file .txt mới đè lên cũ
+
+Tổng thời gian: 2-3 giây từ điện thoại đến Drive — không cần restart, không refresh thủ công.
+
+Phần 5 — Cấu trúc thư mục dự án
+trongluong-v2/
+├── server/                  ← Node.js
+│   ├── src/
+│   │   ├── routes/          ← Express routes
+│   │   ├── services/        ← drive.js, storage.js, watcher.js
+│   │   ├── socket/          ← socket.io events
+│   │   └── db/              ← better-sqlite3 schema
+│   └── package.json
+│
+├── app/                     ← React Native (Expo)
+│   ├── src/
+│   │   ├── screens/         ← HomeScreen, ScanScreen, UploadScreen
+│   │   ├── components/      ← ProgressBar, OrderCard
+│   │   └── services/        ← api.js, socket.js
+│   └── package.json
+│
+└── desktop/                 ← Electron
+    ├── main/                ← main process
+    ├── renderer/            ← React UI
+    └── package.json
+
+So sánh bản cũ vs bản mới
+Tiêu chí
+Python/Tkinter (cũ)
+Node.js/React Native (mới)
+UI đơ
+Có (single thread)
+Không (tách process)
+Upload
+Tuần tự
+Song song (Promise.all)
+Realtime
+Không
+Có (Socket.io)
+Drive sync
+Polling 30s
+Chokidar (event-based)
+Cập nhật số ký
+Không có
+PATCH API + realtime
+Cross-platform app
+Không (web)
+Có (iOS + Android)
+Metadata storage
+File .txt/.json
+SQLite
+
+Phần 6 — Thiết kế màn hình App (React Native)
+App có 5 màn hình chính, kết nối với nhau qua React Navigation Stack.
+
+Màn hình 1 — HomeScreen (Trang chủ)
+HomeScreen — Màn hình mở đầu khi khởi động app
+Header: Tên app + chỉ báo trạng thái kết nối server (xanh/đỏ)
+Button lớn ở giữa: 'Tạo đơn mới' → điều hướng sang ScanScreen
+Danh sách đơn hàng gần nhất (FlatList): hiển thị mã vận đơn, số ký, thời gian, trạng thái Drive
+Mỗi item trong danh sách: badge màu (đang upload / đã sync / lỗi)
+Nhấn vào item → điều hướng sang OrderDetailScreen
+Pull-to-refresh để tải lại danh sách từ server
+
+Màn hình 2 — ScanScreen (Quét mã)
+ScanScreen — Quét barcode mã vận đơn
+Camera fullscreen với overlay khung quét ở giữa màn hình
+Quét barcode/QR → tự động nhận diện mã vận đơn
+Nút 'Nhập tay' ở dưới → hiện TextInput để nhập mã vận đơn thủ công
+Sau khi có mã → tự động điều hướng sang OrderFormScreen
+Xử lý permission camera: nếu chưa cấp → hiện dialog xin quyền
+
+Màn hình 3 — OrderFormScreen (Nhập thông tin đơn)
+OrderFormScreen — Nhập số ký và thông tin đơn hàng
+Hiển thị mã vận đơn đã scan (read-only, nền xám)
+TextInput: Số ký (ví dụ: 12.5kg) — validate format bằng zod trước khi submit
+TextInput: Ghi chú (tùy chọn)
+Button 'Tiếp tục' → POST /api/orders → nhận orderId → điều hướng UploadScreen
+Button 'Quét lại' → quay lại ScanScreen
+Loading spinner khi đang gọi API
+
+Màn hình 4 — UploadScreen (Upload ảnh/video)
+UploadScreen — Chọn và upload ảnh/video
+Grid preview ảnh/video đã chọn (FlatList 3 cột)
+Button 'Chọn từ Gallery' → expo-image-picker, cho phép multi-select
+Button 'Chụp ảnh' → expo-camera chụp trực tiếp
+Mỗi file trong grid: hiển thị progress bar riêng (%) realtime qua onUploadProgress
+Button 'Upload tất cả' → gọi Promise.all upload song song
+Khi upload xong: hiện toast thành công + socket event drive_syncing
+Button xóa (X) từng file trước khi upload
+
+Màn hình 5 — OrderDetailScreen (Chi tiết đơn)
+OrderDetailScreen — Xem và chỉnh sửa đơn hàng
+Hiển thị đầy đủ: mã vận đơn, số ký, ngày tạo, ghi chú
+Trạng thái Drive sync với icon và text rõ ràng
+Danh sách file đã upload với thumbnail ảnh/icon video
+Button 'Sửa số ký' → hiện inline TextInput → PATCH /api/orders/:id
+Sau khi PATCH thành công: socket event order_updated cập nhật UI ngay
+Button 'Xem trên Drive' → mở link Drive trong browser
+
+Luồng điều hướng tổng thể
+HomeScreen
+  └─[Tạo đơn mới]──→ ScanScreen
+                         └─[Scan thành công]──→ OrderFormScreen
+                                                    └─[Tiếp tục]──→ UploadScreen
+                                                                       └─[Upload xong]──→ HomeScreen
+HomeScreen
+  └─[Nhấn đơn cũ]──→ OrderDetailScreen
+                         └─[Sửa số ký]──→ (PATCH API, realtime update, ở lại màn hình)
+
+
+Phần 7 — API Endpoints (REST)
+Server Express expose các endpoints sau. Tất cả response đều là JSON. Base URL: http://<server-ip>:3000
+
+7.1 — Orders API
+Method
+Endpoint
+Mô tả
+GET
+/api/orders
+Lấy danh sách đơn hàng (query: page, limit, status)
+POST
+/api/orders
+Tạo đơn mới — body: { maVanDon, soKy, ghiChu? }
+GET
+/api/orders/:id
+Lấy chi tiết 1 đơn hàng theo ID
+PATCH
+/api/orders/:id
+Cập nhật số ký — body: { soKy }
+DELETE
+/api/orders/:id
+Xóa đơn hàng và các file liên quan
+
+7.2 — Upload API
+Method
+Endpoint
+Mô tả
+POST
+/api/upload/:orderId
+Upload file — multipart/form-data, field: files[]
+GET
+/api/orders/:id/files
+Lấy danh sách file đã upload của đơn
+DELETE
+/api/files/:fileId
+Xóa 1 file cụ thể
+
+7.3 — System API
+Method
+Endpoint
+Mô tả
+GET
+/api/health
+Kiểm tra server đang chạy, trả về { status: 'ok', uptime }
+GET
+/api/drive/status
+Kiểm tra kết nối Google Drive, trả về { connected, quota }
+
+7.4 — Request/Response mẫu
+POST /api/orders — Tạo đơn mới
+Request body:
+{
+  "maVanDon": "VN123456789",
+  "soKy": "12.5kg",
+  "ghiChu": "Hàng dễ vỡ"
+}
+Response 201:
+{
+  "success": true,
+  "data": {
+    "id": "ord_abc123",
+    "maVanDon": "VN123456789",
+    "soKy": "12.5kg",
+    "folderPath": "TrongLuong/VN123456789/",
+    "status": "pending",
+    "createdAt": "2024-01-15T08:30:00Z"
+  }
+}
+
+PATCH /api/orders/:id — Cập nhật số ký
+Request body:
+{
+  "soKy": "15kg"
+}
+Response 200:
+{
+  "success": true,
+  "data": { "id": "ord_abc123", "soKy": "15kg", "updatedAt": "..." }
+}
+
+
+Phần 8 — Socket Events (Realtime)
+Server dùng socket.io để push trạng thái xuống app theo thời gian thực. App không cần polling — chỉ lắng nghe events.
+
+Hướng
+Event name
+Payload
+Mô tả
+Client → Server
+join_order
+{ orderId }
+Bắt đầu theo dõi 1 đơn cụ thể
+Client → Server
+leave_order
+{ orderId }
+Ngừng theo dõi đơn
+Server → Client
+upload_progress
+{ orderId, fileName, percent }
+Tiến độ upload từng file (0-100%)
+Server → Client
+upload_done
+{ orderId, fileCount }
+Tất cả file upload xong
+Server → Client
+drive_syncing
+{ orderId }
+Đang sync lên Google Drive
+Server → Client
+drive_synced
+{ orderId, driveUrl }
+Sync Drive thành công, có link
+Server → Client
+order_updated
+{ orderId, soKy }
+Số ký được cập nhật (PATCH)
+Server → Client
+sync_error
+{ orderId, message }
+Lỗi upload hoặc Drive sync
+Server → Client
+server_status
+{ status, driveConnected }
+Trạng thái server (broadcast)
+
+Code mẫu lắng nghe Socket trong app (React Native)
+// services/socket.ts
+import { io } from 'socket.io-client';
+
+const socket = io('http://<server-ip>:3000');
+
+// Lắng nghe tiến độ upload
+socket.on('upload_progress', ({ orderId, fileName, percent }) => {
+  updateFileProgress(orderId, fileName, percent);
+});
+
+// Lắng nghe Drive sync xong
+socket.on('drive_synced', ({ orderId, driveUrl }) => {
+  showToast('Đã sync lên Drive!');
+  updateOrderStatus(orderId, 'synced', driveUrl);
+});
+
+// Lắng nghe cập nhật số ký từ thiết bị khác
+socket.on('order_updated', ({ orderId, soKy }) => {
+  updateOrderInList(orderId, { soKy });
+});
+
+
+Phần 9 — Cấu trúc folder React Native / Expo (chi tiết)
+app/
+├── src/
+│   ├── screens/
+│   │   ├── HomeScreen.tsx          ← Danh sách đơn + button tạo mới
+│   │   ├── ScanScreen.tsx          ← Camera + barcode scanner
+│   │   ├── OrderFormScreen.tsx     ← Form nhập mã vận đơn + số ký
+│   │   ├── UploadScreen.tsx        ← Gallery picker + upload progress
+│   │   └── OrderDetailScreen.tsx   ← Chi tiết + sửa số ký
+│   │
+│   ├── components/
+│   │   ├── ProgressBar.tsx         ← Progress bar từng file upload
+│   │   ├── OrderCard.tsx           ← Item trong danh sách đơn hàng
+│   │   ├── StatusBadge.tsx         ← Badge màu: pending/uploading/synced/error
+│   │   ├── FilePreview.tsx         ← Thumbnail ảnh / icon video
+│   │   └── ServerStatus.tsx        ← Chỉ báo kết nối server (xanh/đỏ)
+│   │
+│   ├── services/
+│   │   ├── api.ts                  ← Tất cả axios calls (createOrder, uploadFiles...)
+│   │   ├── socket.ts               ← socket.io-client singleton + event listeners
+│   │   └── storage.ts              ← AsyncStorage: lưu server IP, cache orders
+│   │
+│   ├── hooks/
+│   │   ├── useOrders.ts            ← Fetch + cache danh sách đơn hàng
+│   │   ├── useUpload.ts            ← Logic upload song song + progress tracking
+│   │   └── useSocket.ts            ← Subscribe/unsubscribe socket events
+│   │
+│   ├── types/
+│   │   └── index.ts                ← TypeScript interfaces: Order, File, SocketEvent
+│   │
+│   └── navigation/
+│       └── AppNavigator.tsx         ← React Navigation Stack + tab config
+│
+├── app.json                        ← Expo config: name, version, permissions
+├── tsconfig.json
+└── package.json
+
+File types/index.ts — TypeScript interfaces chính
+export interface Order {
+  id: string;
+  maVanDon: string;
+  soKy: string;
+  ghiChu?: string;
+  status: 'pending' | 'uploading' | 'uploaded' | 'syncing' | 'synced' | 'error';
+  driveUrl?: string;
+  folderPath: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface UploadFile {
+  uri: string;
+  name: string;
+  type: string;
+  size: number;
+  progress: number;   // 0-100
+  status: 'pending' | 'uploading' | 'done' | 'error';
+}
+
+
+Phần 10 — Môi trường phát triển (Dev Setup)
+Hướng dẫn cài đặt từ đầu đến khi chạy được app trên cả iOS và Android.
+
+10.1 — Yêu cầu phần mềm
+Phần mềm
+Version
+Ghi chú
+Node.js
+18+
+Dùng cho cả server và Expo CLI
+Xcode
+14+
+MacBook 2017 dùng macOS 12+ cài được Xcode 14
+Expo CLI
+latest
+npm install -g expo-cli
+EAS CLI
+latest
+npm install -g eas-cli (build iOS/Android)
+Android Studio
+latest
+Tùy chọn — để test Android emulator
+Git
+any
+Quản lý source code
+
+10.2 — Cài đặt và chạy Server
+cd trongluong-v2/server
+npm install
+
+# Tạo file .env
+cp .env.example .env
+# Điền thông tin: GOOGLE_SERVICE_ACCOUNT_KEY, DRIVE_FOLDER_ID, PORT=3000
+
+# Chạy development mode (auto-restart khi thay code)
+npm run dev
+
+# Kiểm tra server đang chạy
+curl http://localhost:3000/api/health
+
+10.3 — Cài đặt và chạy App (React Native Expo)
+cd trongluong-v2/app
+npm install
+
+# Tạo file config
+cp src/config.example.ts src/config.ts
+# Điền SERVER_IP: địa chỉ IP máy Windows trong mạng LAN
+
+# Chạy Expo dev server
+npx expo start
+
+# Quét QR bằng Expo Go app để test nhanh trên điện thoại
+# (iOS: App Store, Android: Play Store — tìm 'Expo Go')
+
+10.4 — Build iOS (cài lên iPhone không cần $99)
+# Trên MacBook, mở Xcode lần đầu để accept license
+sudo xcodebuild -license accept
+
+# Build iOS bằng Expo + Xcode local
+cd trongluong-v2/app
+npx expo run:ios
+
+# Hoặc mở Xcode thủ công để sign và install lên iPhone
+npx expo prebuild --platform ios
+open ios/TrongLuong.xcworkspace
+# Trong Xcode: chọn team (Apple ID), chọn device, nhấn Run (▶)
+Lưu ý quan trọng khi build iOS:
+Lần đầu cắm iPhone vào Mac: nhấn 'Trust' trên iPhone khi hỏi
+Trong Xcode: Signing & Capabilities → chọn Apple ID cá nhân (miễn phí)
+Free Apple ID: cài được tối đa 3 device, hiệu lực 1 năm
+Sau 1 năm: cắm lại Mac, build lại 1 lần → gia hạn thêm 1 năm
+Nếu lỗi 'untrusted developer': iPhone → Settings → General → VPN & Device Mgmt → Trust
+
+10.5 — Build Android (.apk)
+cd trongluong-v2/app
+
+# Build APK debug (test nhanh, không cần sign)
+npx expo run:android
+
+# Build APK release để phát cho nhân viên
+npx expo build:android -t apk
+
+# Gửi file .apk cho nhân viên qua Zalo/Telegram
+# Nhân viên: cho phép 'Install from unknown sources' và cài bình thường
+
+
+Phần 11 — Database Schema (SQLite)
+Dùng better-sqlite3. Hai bảng chính: orders và files.
+
+Bảng orders
+CREATE TABLE orders (
+  id          TEXT PRIMARY KEY,       -- 'ord_' + nanoid(8)
+  ma_van_don  TEXT NOT NULL UNIQUE,   -- mã vận đơn từ barcode scan
+  so_ky       TEXT NOT NULL,          -- ví dụ: '12.5kg'
+  ghi_chu     TEXT,
+  folder_path TEXT NOT NULL,          -- đường dẫn local: TrongLuong/VN123/
+  drive_folder_id TEXT,               -- Google Drive folder ID
+  drive_url   TEXT,                   -- link Drive để xem
+  status      TEXT NOT NULL DEFAULT 'pending',
+              -- pending | uploading | uploaded | syncing | synced | error
+  created_at  TEXT NOT NULL,          -- ISO 8601
+  updated_at  TEXT NOT NULL
+);
+
+Bảng files
+CREATE TABLE files (
+  id          TEXT PRIMARY KEY,
+  order_id    TEXT NOT NULL REFERENCES orders(id),
+  file_name   TEXT NOT NULL,
+  file_path   TEXT NOT NULL,          -- đường dẫn local
+  file_size   INTEGER,                -- bytes
+  mime_type   TEXT,                   -- image/jpeg, video/mp4...
+  drive_file_id TEXT,                 -- Google Drive file ID
+  status      TEXT NOT NULL DEFAULT 'local',
+              -- local | syncing | synced | error
+  created_at  TEXT NOT NULL
+);
+
+Tổng kết — Thứ tự triển khai
+Thứ tự code được khuyến nghị để dễ test từng phần:
+
+Bước
+Module
+Nội dung
+1
+Server — DB + Routes
+Schema SQLite, CRUD orders API, validate zod
+2
+Server — Upload
+Multer diskStorage, POST /api/upload, lưu vào folder
+3
+Server — Socket.io
+Setup socket, emit upload_progress, upload_done
+4
+Server — Drive sync
+googleapis, chokidar watcher, p-queue, emit drive_synced
+5
+App — Navigation
+React Navigation stack, màn hình placeholder
+6
+App — ScanScreen
+expo-camera, barcode scanner, điều hướng
+7
+App — OrderFormScreen
+Form nhập liệu, gọi POST /api/orders
+8
+App — UploadScreen
+expo-image-picker, Promise.all upload, progress bar
+9
+App — HomeScreen
+FlatList đơn hàng, socket listener, realtime status
+10
+App — iOS build
+Xcode sign, cài lên 3 iPhone, test thực tế
+11
+Desktop — Electron
+Panel hiển thị đơn hàng, socket listener, robotjs
+
+Ghi chú cuối:
+Mỗi bước có thể test độc lập trước khi đi bước tiếp theo.
+Bước 1-4 (Server) có thể dùng Postman / curl để test mà không cần app.
+Bước 5-9 dùng Expo Go để test trên điện thoại mà không cần build native.
+Chỉ khi app hoàn chỉnh mới build Xcode (bước 10) — tránh mất thời gian build lại nhiều lần.
+
+
+
+Đây là toàn bộ danh sách file chi tiết cho Bước 1–3, không thiếu file nào:
+
+server/ — root level
+File
+Mô tả
+package.json
+dependencies: express, multer, socket.io, better-sqlite3, zod, nanoid, cors, dotenv
+.env
+PORT=3000, UPLOAD_DIR, DB_PATH (không commit)
+.env.example
+template điền thông tin
+.gitignore
+bỏ qua node_modules, .env, uploads/
+server/src/ — source
+File
+Bước
+Mô tả
+src/app.js
+dùng chung
+khởi tạo Express, mount routes, cors, json parser
+src/server.js
+dùng chung
+http.createServer(app) → gắn socket.io → server.listen()
+src/config.js
+dùng chung
+đọc .env, export PORT, UPLOAD_DIR, DB_PATH
+src/db/schema.js
+Bước 1
+CREATE TABLE orders + CREATE TABLE files
+src/db/index.js
+Bước 1
+khởi tạo better-sqlite3, chạy schema, export db
+src/routes/orders.js
+Bước 1
+GET/POST/PATCH/DELETE /api/orders
+src/routes/system.js
+Bước 1
+GET /api/health + GET /api/drive/status
+src/middleware/validate.js
+Bước 1
+zod schemas cho maVanDon, soKy
+src/middleware/errorHandler.js
+Bước 1
+global Express error handler
+src/routes/upload.js
+Bước 2
+POST /api/upload/:orderId, GET /api/orders/:id/files, DELETE /api/files/:fileId
+src/services/storage.js
+Bước 2
+multer diskStorage config, tạo folder uploads/<maVanDon>/
+src/socket/index.js
+Bước 3
+setup io, xử lý join_order, leave_order
+src/socket/events.js
+Bước 3
+hàm emit: upload_progress, upload_done, server_status
+uploads/
+runtime
+thư mục chứa file — tạo tự động, không commit

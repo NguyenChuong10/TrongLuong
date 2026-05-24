@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sơ Đồ Hệ Thống Trọng Lượng v2</title>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Mermaid JS -->
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.0/dist/mermaid.min.js"></script>
+  
+  <style>
+    :root {
+      --bg-color: #0f172a;
+      --card-bg: rgba(30, 41, 59, 0.7);
+      --border-color: rgba(255, 255, 255, 0.08);
+      --accent-color: #6366f1;
+      --accent-hover: #4f46e5;
+      --text-color: #f1f5f9;
+      --text-muted: #94a3b8;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Outfit', sans-serif;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 20px;
+      overflow-x: hidden;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 40px;
+      max-width: 800px;
+    }
+
+    h1 {
+      font-size: 2.5rem;
+      font-weight: 800;
+      background: linear-gradient(135deg, #a5b4fc 0%, #6366f1 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 12px;
+      letter-spacing: -1px;
+    }
+
+    header p {
+      font-size: 1.1rem;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 1200px;
+      background: var(--card-bg);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--border-color);
+      border-radius: 24px;
+      padding: 32px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    .tab-buttons {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 16px;
+    }
+
+    .tab-btn {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border-color);
+      color: var(--text-muted);
+      padding: 12px 24px;
+      border-radius: 12px;
+      cursor: pointer;
+      font-size: 1rem;
+      font-weight: 600;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .tab-btn:hover {
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text-color);
+    }
+
+    .tab-btn.active {
+      background: var(--accent-color);
+      border-color: var(--accent-color);
+      color: #fff;
+      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.35);
+    }
+
+    .tab-content {
+      display: none;
+      width: 100%;
+      background: rgba(15, 23, 42, 0.8);
+      border-radius: 16px;
+      padding: 24px;
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      min-height: 500px;
+      overflow-x: auto;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .tab-content.active {
+      display: flex;
+      animation: fadeIn 0.4s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .action-panel {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+      margin-top: 12px;
+    }
+
+    .btn-download {
+      background: var(--success);
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 12px;
+      cursor: pointer;
+      font-size: 0.95rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s ease;
+    }
+
+    .btn-download:hover {
+      background: #059669;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+    }
+
+    .btn-live {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-color);
+      color: var(--text-color);
+      padding: 12px 24px;
+      border-radius: 12px;
+      cursor: pointer;
+      font-size: 0.95rem;
+      font-weight: 600;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s ease;
+    }
+
+    .btn-live:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .info-bar {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      display: flex;
+      gap: 20px;
+    }
+
+    .info-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .info-item span {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+
+    .mermaid {
+      background: transparent !important;
+      width: 100%;
+    }
+
+    /* Customizing Mermaid diagram output in Dark Mode */
+    .node rect, .node circle, .node polygon, .node path {
+      fill: #1e293b !important;
+      stroke: #475569 !important;
+    }
+    
+    .edgePath .path {
+      stroke: #64748b !important;
+      stroke-width: 2px !important;
+    }
+    
+    .edgeLabel rect {
+      fill: #0f172a !important;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>SƠ ĐỒ HỆ THỐNG TRỌNG LƯỢNG v2</h1>
+    <p>Bản vẽ kiến trúc kỹ thuật tích hợp trọn vẹn cơ chế bảo mật API Key, Chu kỳ ngày làm việc 24H khép kín, 3 Kênh truyền tải thông minh và Thống kê sản lượng theo Ca.</p>
+  </header>
+
+  <div class="container">
+    <div class="tab-buttons">
+      <button class="tab-btn active" onclick="switchTab(0)">1. Sơ đồ Vận hành từ A đến Z</button>
+      <button class="tab-btn" onclick="switchTab(1)">2. Sơ đồ Chu kỳ 24H & Chia Ca</button>
+    </div>
+
+    <!-- TAB 1: Sơ đồ A-Z -->
+    <div id="tab-0" class="tab-content active">
+      <pre class="mermaid">
+flowchart TD
+    %% 1. QUÉT ĐƠN & CẢNH BÁO QUÁ KÝ %%
+    subgraph "BUOC 1: QUET BARCODE VA CANH BAO QUA KY THONG MINH"
+        Start["Nhan vien quet ma don, Nhap so ky thuc te"] --> CompareWeight{"So sanh can nang khai bao"}
+        
+        CompareWeight -->|Chenh lech lon hon 1kg hoac hon 10 phan tram| AlertRed["Canh bao qua tai mau do noi bat <br/> Bat buoc chup 3 anh va 1 video minh chung"]
+        CompareWeight -->|Binh thuong hoac Trong pham vi cho phep| NormalProceed["Cho phep luu truc tiep <br/> Khuyen khich chup anh bang chung"]
+        
+        AlertRed --> SmartCompress["NEN DUNG LUONG SIEU NHO <br/> - 3 Ảnh nén JPEG: 9MB giam con 450 KB <br/> - 1 Video 480p nén: 10MB giam con 1 MB <br/> - Tong 1 don hang chi nang 1.5 MB <br/> - KHONG GIOI HAN so luong don hang"]
+        NormalProceed --> SmartCompress
+    end
+
+    %% 2. CHIA CA 24H LIÊN TỤC & RESET NGÀY MỚI %%
+    subgraph "BUOC 2: CHU KY LAM VIEC 24H KHEP KIN VA TU DONG CHIA CA"
+        SmartCompress --> DateCalc{"Loc Ngay lam viec thuc te"}
+        
+        DateCalc -->|Quet luc 00:00 den 07:59:59 Sang| PrevDay["Ngay lam viec = Ngay hien tai tru 1 Ngay"]
+        DateCalc -->|Quet luc 08:00 den 23:59:59 Dem| CurrDay["Ngay lam viec = Ngay hien tai"]
+        
+        PrevDay --> ShiftFilter{"Xac dinh Ca"}
+        CurrDay --> ShiftFilter
+        
+        ShiftFilter -->|Gio quet tu 08:00:00 den 16:59:59| ShiftDay["CA SANG <br/> Cong vao bo dem Ca Sáng thuc te"]
+        ShiftFilter -->|Gio quet tu 17:00:00 den 07:59:59 sang mai| ShiftNight["CA DEM <br/> Cong vao bo dem Ca Dem thuc te"]
+        
+        ShiftDay --> ActiveScreen["Hien thi so luong thuc te da xo tren Home Screen"]
+        ShiftNight --> ActiveScreen
+        
+        ActiveScreen --> TimeCheck{"Dung moc 08:00 Sang"}
+        
+        TimeCheck -->|Dung 08:00 Sang ngay moi| HandoverModal["HIEN THI HOP THOAI BAN GIAO CA <br/> - Tong ket san luong ngay cu Ca Sang X Ca Dem Y <br/> - Kiem tra trang thai dong bo du lieu <br/> - Nhan vien ky bien ban doi soat"]
+        HandoverModal -->|Bam Xac nhan va bat dau ca moi| ResetAction["App tu dong Reset bo dem ve 0 don <br/> Dong goi lich su ngay cu vao DB trung tam"]
+        TimeCheck -->|Dang trong ca lam viec| NetworkRoute["Truyen tai du lieu"]
+    end
+
+    %% 3. ĐƯỜNG TRUYỀN BẢO MẬT API KEY (3 KÊNH THÔNG MINH) %%
+    subgraph "BUOC 3: BA KENH TRUYEN BAO MAT VA CHONG TRUY CAP LAU"
+        NetworkRoute --> CheckServer{"Server Windows Online hay Offline"}
+        
+        %% KÊNH 1: SERVER ONLINE %%
+        CheckServer -->|Server ONLINE Ca Sang| VerifyKey1{"Cua ngo API Key"}
+        VerifyKey1 -->|API Key hop le| UploadLocal["Gui ve may Windows noi bo kho <br/> Mang LAN sieu toc duoi 0.5 giay tren don"]
+        VerifyKey1 -->|Thiet bi la ket noi Wi-Fi| BlockHacker["Chan truy cap - Loi 401"]
+        
+        UploadLocal --> DriveSyncNgam["Server tu dong day len Google Drive cuon chieu"]
+        UploadLocal --> CleanLocal1["App xoa file tam tren dien thoai ngay lap tuc <br/> Bo nho chiem dung vinh vien = 0 MB"]
+
+        %% KÊNH 2: SERVER OFFLINE - CÓ INTERNET %%
+        CheckServer -->|Server OFFLINE Ca Dem| CheckInternet{"Dien thoai co Internet Wi-Fi hoac 4G"}
+        CheckInternet -->|CO INTERNET| DirectDrive["DAY THANG LEN GOOGLE DRIVE <br/> Dien thoai tu dong tai file len dam may"]
+        DirectDrive --> CleanLocal2["App xoa file tam tren dien thoai ngay lap tuc <br/> Bo nho chiem dung vinh vien = 0 MB"]
+
+        %% KÊNH 3: SERVER OFFLINE - MẤT MẠNG %%
+        CheckInternet -->|MAT INTERNET| SandboxSave["LUU TAM VAO APP SANDBOX <br/> Luu an bao mat trong app, dung luong sieu nghe 1.5MB tren don <br/> Ca ca dem 300 don chi ton khoang 450 MB"]
+        SandboxSave --> MarkYellow["Hien thi trang thai Cho dong bo"]
+        
+        MarkYellow --> ServerBackOn["Khi Server Windows duoc bat lai luc 8h sang"]
+        ServerBackOn --> AutoSyncQueue["Tu dong dong bo ngam toan bo hang doi"]
+        AutoSyncQueue --> VerifyKey2{"Kiem tra API Key"}
+        VerifyKey2 -->|API Key hop le| UploadServer2["Gui ve may Windows noi bo kho"]
+        UploadServer2 --> CleanLocal3["App xoa sach file tam ca dem tren may"]
+    end
+
+    %% 4. BÁO CÁO VÀ TRA CỨU LỊCH SỬ %%
+    subgraph "BUOC 4: BAO CAO LICH SU VA DOI SOAT THONG TIN"
+        DriveSyncNgam --> HistoryReport["TAB BAO CAO LICH SU NGAY <br/> - Tra cuu san luong ca Sang hoac ca Dem cua bat ky ngay nao <br/> - Go hoac quet ma don cu de xem lai can nang va anh bang chung <br/> - Trang thai dong bo Google Drive: 100%"]
+        HistoryReport --> EndFlow["KET THUC QUY TRINH AN TOAN <br/> He thong bao mat tuyet doi - Khong lo day bo nho"]
+        CleanLocal3 --> EndFlow
+    end
+      </pre>
+    </div>
+
+    <!-- TAB 2: Sơ đồ Ca 24H -->
+    <div id="tab-1" class="tab-content">
+      <pre class="mermaid">
+gantt
+    title Chu kỳ 24h khép kín hoàn hảo (Ngày làm việc 23/05)
+    dateFormat  HH:mm
+    axisFormat %H:%M
+    
+    section Ngày Dương lịch 23/05
+    ☀️ Ca Sáng (08:00 - 17:00)        :active, day1, 08:00, 17:00
+    🌙 Ca Đêm - Nhánh A (17:00 - 24:00)  :active, night1a, 17:00, 24:00
+    
+    section Ngày Dương lịch 24/05
+    🌙 Ca Đêm - Nhánh B (00:00 - 08:00)  :active, night1b, 00:00, 08:00
+    ☀️ Ca Sáng Ngày Mới (08:00 - 17:00)   :day2, 08:00, 17:00
+      </pre>
+    </div>
+
+    <div class="action-panel">
+      <div class="info-bar">
+        <div class="info-item"><span style="background: #6366f1;"></span>Bước 1: Quét & Cân</div>
+        <div class="info-item"><span style="background: #f59e0b;"></span>Bước 2: Phân Ca & Reset</div>
+        <div class="info-item"><span style="background: #10b981;"></span>Bước 3: Gửi & Bảo Mật</div>
+        <div class="info-item"><span style="background: #94a3b8;"></span>Bước 4: Báo Cáo</div>
+      </div>
+      <div style="display: flex; gap: 12px;">
+        <a href="https://mermaid.live" target="_blank" class="btn-live">
+          <span>🌐</span> Mở Trên Mermaid Live Editor
+        </a>
+        <button class="btn-download" onclick="window.print()">
+          <span>📄</span> In / Lưu Thành PDF
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Initialize Mermaid inside the script
+    mermaid.initialize({
+      theme: 'dark',
+      securityLevel: 'loose',
+      startOnLoad: true,
+      flowchart: {
+        useMaxWidth: true,
+        htmlLabels: true,
+        curve: 'basis'
+      }
+    });
+
+    function switchTab(index) {
+      // Hide all contents
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+      
+      // Show selected content
+      document.getElementById('tab-' + index).classList.add('active');
+      document.querySelectorAll('.tab-btn')[index].classList.add('active');
+      
+      // Rerender mermaid if needed
+      mermaid.contentLoaded();
+    }
+  </script>
+</body>
+</html>

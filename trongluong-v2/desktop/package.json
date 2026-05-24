@@ -1,0 +1,20 @@
+{
+  "name": "desktop",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "start": "electron .",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "electron": "^42.1.0",
+    "socket.io-client": "^4.8.3"
+  },
+  "devDependencies": {
+    "electron-builder": "^26.8.1"
+  }
+}

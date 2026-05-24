@@ -1,0 +1,21 @@
+{
+  "manifest_version": 3,
+  "name": "J&T JMS Auto-Fill Assistant",
+  "version": "1.2",
+  "description": "Tự động hóa đối soát điền cân nặng thực tế và tải ảnh/video minh chứng lên J&T JMS",
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://*.jtexpress.vn/*"],
+      "js": ["content.js"],
+      "run_at": "document_end",
+      "all_frames": true
+    }
+  ],
+  "host_permissions": [
+    "http://localhost:3000/*"
+  ],
+  "permissions": []
+}

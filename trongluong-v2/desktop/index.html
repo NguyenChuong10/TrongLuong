@@ -1,0 +1,1669 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TrongLuong v2 - Desktop Panel</title>
+  <!-- Modern Google Font -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --bg-gradient: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+      --card-bg: rgba(30, 41, 59, 0.7);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --glow-color: rgba(99, 102, 241, 0.15);
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --primary: #6366f1;
+      --primary-hover: #4f46e5;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background: var(--bg-gradient);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    /* macOS Window Header Space (for custom draggable titlebars if needed) */
+    .titlebar {
+      height: 38px;
+      -webkit-app-region: drag;
+      display: flex;
+      align-items: center;
+      padding-left: 80px; /* Space for macOS close/minimize/zoom buttons */
+      background: rgba(15, 23, 42, 0.4);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+      font-size: 0.75rem;
+      font-weight: 500;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      text-transform: uppercase;
+    }
+
+    main {
+      flex: 1;
+      padding: 2rem;
+      max-width: 840px;
+      margin: 0 auto;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    /* Dashboard Header */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+    }
+
+    .brand-title {
+      font-size: 1.75rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, #fff 0%, #cbd5e1 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      letter-spacing: -0.02em;
+    }
+
+    .brand-subtitle {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-top: 0.25rem;
+    }
+
+    .server-badge {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 1rem;
+      border-radius: 9999px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--card-border);
+      font-size: 0.85rem;
+      font-weight: 600;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .badge-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--danger);
+      box-shadow: 0 0 10px var(--danger);
+      transition: all 0.3s ease;
+    }
+
+    .server-badge.online .badge-dot {
+      background: var(--success);
+      box-shadow: 0 0 10px var(--success);
+    }
+
+    /* Main Grid Layout */
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+    }
+
+    @media (max-width: 640px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Sleek Cards */
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      backdrop-filter: blur(16px);
+      border-radius: 1.25rem;
+      padding: 1.5rem;
+      box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.2), inset 0 1px 0 0 rgba(255, 255, 255, 0.05);
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.15), transparent);
+    }
+
+    .card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.3), 0 0 20px var(--glow-color);
+    }
+
+    .card-full {
+      grid-column: 1 / -1;
+    }
+
+    .card-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 1.25rem;
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      color: #fff;
+    }
+
+    .card-icon {
+      font-size: 1.25rem;
+      color: var(--primary);
+    }
+
+    /* Stats & Info Styles */
+    .info-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.85rem;
+    }
+
+    .info-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 0.65rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+    }
+
+    .info-item:last-child {
+      border-bottom: none;
+      padding-bottom: 0;
+    }
+
+    .info-label {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    .info-value {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--text-main);
+    }
+
+    .info-value.success {
+      color: var(--success);
+    }
+
+    /* Drive Capacity Bar */
+    .progress-container {
+      margin-top: 1rem;
+    }
+
+    .progress-label-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-bottom: 0.4rem;
+    }
+
+    .progress-bar-bg {
+      height: 8px;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--primary) 0%, #818cf8 100%);
+      border-radius: 999px;
+      transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    /* Connection Settings Input */
+    .config-group {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 0.5rem;
+    }
+
+    input[type="text"] {
+      flex: 1;
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid var(--card-border);
+      border-radius: 0.75rem;
+      padding: 0.65rem 0.85rem;
+      color: var(--text-main);
+      font-family: inherit;
+      font-size: 0.85rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    input[type="text"]:focus {
+      border-color: var(--primary);
+    }
+
+    button {
+      background: var(--primary);
+      color: white;
+      border: none;
+      border-radius: 0.75rem;
+      padding: 0.65rem 1.25rem;
+      font-family: inherit;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    button:hover {
+      background: var(--primary-hover);
+      box-shadow: 0 0 12px rgba(99, 102, 241, 0.4);
+    }
+
+    /* Logs view */
+    .log-panel {
+      font-family: 'Courier New', Courier, monospace;
+      background: rgba(15, 23, 42, 0.8);
+      border-radius: 0.75rem;
+      padding: 1rem;
+      height: 160px;
+      overflow-y: auto;
+      font-size: 0.8rem;
+      color: #38bdf8;
+      border: 1px solid rgba(255, 255, 255, 0.03);
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+
+    .log-entry {
+      line-height: 1.4;
+    }
+
+    .log-time {
+      color: var(--text-muted);
+      margin-right: 0.5rem;
+    }
+
+    /* Smooth Micro-animations */
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    .pulse {
+      animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+
+    /* macOS style tab bar */
+    .tab-bar {
+      display: flex;
+      background: rgba(15, 23, 42, 0.4);
+      border: 1px solid var(--card-border);
+      border-radius: 0.85rem;
+      padding: 0.25rem;
+      margin-bottom: 0.5rem;
+      gap: 0.25rem;
+    }
+    
+    .tab-btn {
+      flex: 1;
+      background: transparent;
+      color: var(--text-muted);
+      border: none;
+      border-radius: 0.65rem;
+      padding: 0.65rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
+    .tab-btn:hover {
+      color: var(--text-main);
+      background: rgba(255, 255, 255, 0.03);
+      box-shadow: none;
+    }
+    
+    .tab-btn.active {
+      background: var(--primary);
+      color: #fff;
+      font-weight: 600;
+      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+    }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="titlebar">
+    <span>TrongLuong v2 Desktop Monitor</span>
+  </div>
+
+  <main>
+    <div class="header">
+      <div>
+        <h1 class="brand-title">TrongLuong v2</h1>
+        <p class="brand-subtitle">Hệ thống điều phối & Giám sát ổ đĩa</p>
+      </div>
+      <div class="server-badge" id="serverBadge">
+        <span class="badge-dot"></span>
+        <span id="serverStatusText">Đang ngắt kết nối</span>
+      </div>
+    </div>
+
+    <!-- Modern macOS-style Tab bar -->
+    <div class="tab-bar">
+      <button class="tab-btn active" data-tab="tab-monitor">🖥️ Giám Sát Hệ Thống</button>
+      <button class="tab-btn" data-tab="tab-users">👤 Quản Lý Nhân Viên</button>
+      <button class="tab-btn" data-tab="tab-uploads">📦 Đơn Hàng Từ Upload</button>
+    </div>
+
+    <div id="tab-monitor" class="tab-content active">
+      <div class="grid">
+
+      <!-- Connection Card -->
+      <div class="card">
+        <div class="card-title">
+          <span class="card-icon">⚡</span>
+          <span>Cấu hình kết nối</span>
+        </div>
+        <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.75rem;">
+          Nhập URL của backend server để bắt đầu giám sát hệ thống.
+        </p>
+        <div class="config-group">
+          <input type="text" id="serverUrlInput" value="http://localhost:3000" placeholder="http://localhost:3000">
+          <button id="connectBtn">Kết nối</button>
+        </div>
+      </div>
+
+      <!-- System Health Card -->
+      <div class="card">
+        <div class="card-title">
+          <span class="card-icon">💻</span>
+          <span>Trạng thái máy chủ</span>
+        </div>
+        <div class="info-list">
+          <div class="info-item">
+            <span class="info-label">Uptime</span>
+            <span class="info-value" id="serverUptime">-</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">Tên máy chủ (Hostname)</span>
+            <span class="info-value" id="serverHostname">-</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">Ping phản hồi</span>
+            <span class="info-value" id="serverPing">-</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Storage Card -->
+      <div class="card card-full">
+        <div class="card-title">
+          <span class="card-icon">💾</span>
+          <span>Hệ thống Lưu trữ & Đồng bộ</span>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+          <!-- Cột 1: Ổ đĩa Local -->
+          <div style="background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.03); padding: 1.2rem; border-radius: 0.75rem;">
+            <p style="font-size: 0.9rem; font-weight: 600; color: #fff; margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.4rem;">
+              <span>🖥️</span> Ổ đĩa Local (Server)
+            </p>
+            <div class="info-list" style="gap: 0.6rem;">
+              <div class="info-item">
+                <span class="info-label">Quyền thư mục</span>
+                <span class="info-value" id="driveAccess">-</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">Đường dẫn</span>
+                <span class="info-value" id="drivePath" style="font-size: 0.75rem; word-break: break-all;">-</span>
+              </div>
+            </div>
+            <div class="progress-container" style="margin-top: 0.75rem;">
+              <div class="progress-label-row">
+                <span>Khả dụng: <strong id="driveFree">- GB</strong></span>
+                <span>Tổng: <strong id="driveTotal">- GB</strong></span>
+              </div>
+              <div class="progress-bar-bg">
+                <div class="progress-bar-fill" id="driveProgress"></div>
+              </div>
+              <p id="drivePercentText" style="text-align: right; font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">-</p>
+            </div>
+          </div>
+
+          <!-- Cột 2: Google Drive Cloud -->
+          <div style="background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.03); padding: 1.2rem; border-radius: 0.75rem;">
+            <p style="font-size: 0.9rem; font-weight: 600; color: #fff; margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.4rem;">
+              <span>☁️</span> Google Drive Cloud
+            </p>
+            <div class="info-list" style="gap: 0.6rem;">
+              <div class="info-item">
+                <span class="info-label">Kết nối Drive</span>
+                <span class="info-value" id="gdriveStatus">-</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">Tài khoản</span>
+                <span class="info-value" id="gdriveAccount" style="font-size: 0.75rem; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; max-width: 180px;">-</span>
+              </div>
+            </div>
+            <div class="progress-container" style="margin-top: 0.75rem;">
+              <div class="progress-label-row">
+                <span>Đã dùng: <strong id="gdriveUsed">-</strong></span>
+                <span>Tổng: <strong id="gdriveTotal">-</strong></span>
+              </div>
+              <div class="progress-bar-bg">
+                <div class="progress-bar-fill" id="gdriveProgress" style="background: linear-gradient(90deg, #10b981 0%, #34d399 100%);"></div>
+              </div>
+              <p id="gdrivePercentText" style="text-align: right; font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">-</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      </div>
+
+      <!-- Export Report Card -->
+      <div class="card card-full">
+        <div class="card-title">
+          <span class="card-icon">📊</span>
+          <span>Xuất Báo Cáo Excel (CSV) theo Ngày nghiệp vụ</span>
+        </div>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">
+          Chọn ngày nghiệp vụ cụ thể để xuất báo cáo đối soát trọng lượng đơn hàng sang tệp tin CSV (Microsoft Excel). Hỗ trợ đầy đủ tiếng Việt có dấu.
+        </p>
+        <div style="display: flex; align-items: center; gap: 1.25rem; flex-wrap: wrap;">
+          <div style="display: flex; flex-direction: column; gap: 0.35rem; min-width: 200px;">
+            <label for="exportDateInput" style="font-size: 0.75rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">Chọn ngày nghiệp vụ</label>
+            <input type="date" id="exportDateInput" style="background: rgba(255,255,255,0.05); border: 1px solid var(--card-border); color: #fff; padding: 0.6rem 0.8rem; border-radius: 0.5rem; font-family: inherit; font-size: 0.9rem; outline: none; transition: border-color 0.3s ease;">
+          </div>
+          <div style="display: flex; gap: 0.75rem; margin-top: 1.25rem;">
+            <button id="downloadDayReportBtn" style="background: linear-gradient(135deg, var(--primary) 0%, #4f46e5 100%); color: #fff; border: none; padding: 0.6rem 1.2rem; border-radius: 0.5rem; font-weight: 600; font-size: 0.9rem; cursor: pointer; display: flex; align-items: center; gap: 0.4rem; transition: transform 0.2s ease, box-shadow 0.2s ease;">
+              <span>📊</span> Tải Báo Cáo Ngày
+            </button>
+            <button id="downloadAllReportBtn" style="background: rgba(255,255,255,0.05); border: 1px solid var(--card-border); color: var(--text-main); padding: 0.6rem 1.2rem; border-radius: 0.5rem; font-weight: 600; font-size: 0.9rem; cursor: pointer; display: flex; align-items: center; gap: 0.4rem; transition: background 0.3s ease;">
+              <span>📁</span> Xuất Toàn Bộ Đơn Hàng
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Batch Folder Importer Card -->
+      <div class="card card-full">
+        <div class="card-title">
+          <span class="card-icon">📁</span>
+          <span>Nhập dữ liệu Ảnh/Video Hàng loạt từ Thư mục Máy tính</span>
+        </div>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">
+          Nhập đường dẫn tuyệt đối của thư mục chứa các thư mục con đơn hàng (tên thư mục chứa mã vận đơn, bên trong có 3 ảnh + 1 video). Cân nặng sẽ lấy theo đuôi tên thư mục (ví dụ <code>861721784028_10.8</code>) hoặc đọc file <code>can_nang.txt</code> bên trong, hoặc dùng cân nặng mặc định dưới đây.
+        </p>
+        <div style="display: flex; gap: 1.25rem; flex-wrap: wrap;">
+          <div style="display: flex; flex-direction: column; gap: 0.35rem; flex: 2; min-width: 250px;">
+            <label style="font-size: 0.75rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase;">Đường dẫn thư mục nguồn trên Mac</label>
+            <input type="text" id="importSourceFolder" placeholder="Ví dụ: /Users/mac/Desktop/DoneOrders">
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 0.35rem; width: 120px;">
+            <label style="font-size: 0.75rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase;">Cân nặng mặc định (kg)</label>
+            <input type="text" id="importDefaultWeight" value="2.0">
+          </div>
+          <div style="display: flex; align-items: flex-end; margin-top: auto;">
+            <button id="startImportBtn" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); font-size: 0.9rem; padding: 0.65rem 1.5rem; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);">
+              🚀 QUÉT & NHẬP VÀO HỆ THỐNG
+            </button>
+          </div>
+        </div>
+        <div style="margin-top: 1rem;">
+          <p style="font-size: 0.75rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; margin-bottom: 0.4rem;">Tiến độ & Kết quả Nhập</p>
+          <div id="importStatusLogs" style="font-family: monospace; background: rgba(0, 0, 0, 0.4); border-radius: 0.5rem; padding: 0.8rem; height: 120px; overflow-y: auto; border: 1px solid var(--card-border); color: #10b981; font-size: 0.8rem; line-height: 1.4; display: flex; flex-direction: column; gap: 0.2rem;">
+            Chờ quét thư mục...
+          </div>
+        </div>
+      </div>
+
+
+      <!-- Realtime Event Logger -->
+      <div class="card card-full">
+        <div class="card-title">
+          <span class="card-icon">🔔</span>
+          <span>Nhật ký Sự kiện thời gian thực (Socket.io)</span>
+        </div>
+        <div class="log-panel" id="logPanel">
+          <div class="log-entry">
+            <span class="log-time">[Hệ thống]</span> Chờ kết nối đến server...
+          </div>
+        </div>
+      </div>
+    </div> <!-- end grid -->
+    </div> <!-- end tab-monitor -->
+
+    <!-- Employee Manager Tab -->
+    <div id="tab-users" class="tab-content">
+      <div class="grid">
+        <!-- Thêm Nhân Viên Mới Card -->
+        <div class="card">
+          <div class="card-title">
+            <span class="card-icon">➕</span>
+            <span>Thêm nhân viên mới</span>
+          </div>
+          <form id="addUserForm" style="display: flex; flex-direction: column; gap: 1rem;">
+            <div style="display: flex; flex-direction: column; gap: 0.4rem;">
+              <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: 500;">Tên nhân viên:</label>
+              <input type="text" id="newUserName" placeholder="Ví dụ: Nguyễn Văn Hùng" required>
+            </div>
+            
+            <div style="display: flex; flex-direction: column; gap: 0.4rem;">
+              <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: 500;">Ca trực mặc định:</label>
+              <select id="newUserShift" style="background: rgba(15, 23, 42, 0.6); border: 1px solid var(--card-border); border-radius: 0.75rem; padding: 0.65rem 0.85rem; color: var(--text-main); font-family: inherit; font-size: 0.85rem; outline: none; transition: border-color 0.2s;">
+                <option value="ca_sang" style="background: #1e1b4b; color: #fff;">☀️ Ca Sáng (8h - 21h)</option>
+                <option value="ca_dem" style="background: #1e1b4b; color: #fff;">🌙 Ca Đêm (21h - 8h)</option>
+              </select>
+            </div>
+            
+            <div style="display: flex; flex-direction: column; gap: 0.4rem;">
+              <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: 500;">Mã PIN đăng nhập (4 số):</label>
+              <input type="text" id="newUserPin" placeholder="Ví dụ: 1234" maxlength="4" pattern="\d{4}" title="Mã PIN phải chứa đúng 4 chữ số!" required>
+            </div>
+            
+            <button type="submit" style="margin-top: 0.5rem; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+              <span>💾</span> Lưu nhân viên
+            </button>
+          </form>
+        </div>
+
+        <!-- Thống kê & Hướng dẫn Card -->
+        <div class="card">
+          <div class="card-title">
+            <span class="card-icon">💡</span>
+            <span>Hướng dẫn & Thông tin</span>
+          </div>
+          <p style="font-size: 0.85rem; color: var(--text-muted); line-height: 1.6; margin-bottom: 0.8rem;">
+            Tài khoản nhân viên sau khi thêm sẽ được đồng bộ trực tiếp xuống ứng dụng di động của từng nhân viên ngay khi họ kết nối mạng.
+          </p>
+          <p style="font-size: 0.85rem; color: var(--text-muted); line-height: 1.6;">
+            <strong>Mã PIN 4 số</strong> được dùng để nhân viên đăng nhập nhanh chóng bằng bàn phím số ảo trên thiết bị di động, không cần bàn phím ký tự phức tạp.
+          </p>
+        </div>
+
+        <!-- Danh sách nhân viên Card (Full) -->
+        <div class="card card-full">
+          <div class="card-title" style="display: flex; justify-content: space-between; align-items: center;">
+            <div style="display: flex; align-items: center; gap: 0.6rem;">
+              <span class="card-icon">👥</span>
+              <span>Danh sách nhân viên hoạt động</span>
+            </div>
+            <span id="userCountBadge" style="background: var(--primary); padding: 0.2rem 0.6rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 700;">- nhân viên</span>
+          </div>
+          
+          <div style="overflow-x: auto; margin-top: 0.5rem;">
+            <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.85rem;">
+              <thead>
+                <tr style="border-bottom: 2px solid rgba(255,255,255,0.06); color: var(--text-muted); font-weight: 600;">
+                  <th style="padding: 0.75rem 1rem;">👤 Tên nhân viên</th>
+                  <th style="padding: 0.75rem 1rem;">⏰ Ca làm việc</th>
+                  <th style="padding: 0.75rem 1rem;">🔑 Mã PIN</th>
+                  <th style="padding: 0.75rem 1rem;">📅 Ngày đăng ký</th>
+                  <th style="padding: 0.75rem 1rem; text-align: right;">⚙️ Thao tác</th>
+                </tr>
+              </thead>
+              <tbody id="usersTableBody">
+                <tr>
+                  <td colspan="5" style="text-align: center; padding: 2rem; color: var(--text-muted);">
+                    Đang nạp danh sách nhân viên...
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab Đơn Hàng Từ Upload -->
+    <div id="tab-uploads" class="tab-content">
+      <div class="card" style="margin-top: 1rem;">
+        <div class="card-title" style="display: flex; justify-content: space-between; align-items: center;">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <span class="card-icon">📦</span>
+            <span>Danh Sách Đơn Hàng Từ Upload</span>
+          </div>
+          <button id="refreshUploadsBtn" style="padding: 0.5rem 1.2rem; border-radius: 0.5rem; background: var(--primary); border: none; color: white; font-weight: 700; cursor: pointer; transition: opacity 0.2s;">🔄 Làm mới</button>
+        </div>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.25rem;">
+          Danh sách các đơn hàng hiện có ảnh & video đính kèm trong thư mục <code>./upload</code>. Nhấp vào các nút sao chép để dán nhanh trên J&T JMS.
+        </p>
+
+        <div class="table-wrapper">
+          <table style="width: 100%; border-collapse: collapse; text-align: left;">
+            <thead>
+              <tr style="border-bottom: 2px solid rgba(255,255,255,0.05); color: var(--text-muted); font-size: 0.85rem;">
+                <th style="padding: 0.75rem 1rem; width: 60px;">STT</th>
+                <th style="padding: 0.75rem 1rem;">Mã Vận Đơn</th>
+                <th style="padding: 0.75rem 1rem; width: 180px;">Số Ký</th>
+                <th style="padding: 0.75rem 1rem; width: 120px;">Số Tệp</th>
+                <th style="padding: 0.75rem 1rem; text-align: right; width: 320px;">Thao tác</th>
+              </tr>
+            </thead>
+            <tbody id="uploadsTableBody">
+              <tr>
+                <td colspan="5" style="text-align: center; padding: 2rem; color: var(--text-muted);">
+                  Nhấp "Làm mới" để quét thư mục uploads.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </main>
+
+ 
+  <!-- Load socket.io-client -->
+  <script>
+    // We can use either node require or standard browser imports since nodeIntegration is enabled
+    const io = require('socket.io-client');
+    
+    const serverBadge = document.getElementById('serverBadge');
+    const serverStatusText = document.getElementById('serverStatusText');
+    const serverUrlInput = document.getElementById('serverUrlInput');
+    const connectBtn = document.getElementById('connectBtn');
+    const logPanel = document.getElementById('logPanel');
+ 
+    // UI elements for health
+    const serverUptime = document.getElementById('serverUptime');
+    const serverHostname = document.getElementById('serverHostname');
+    const serverPing = document.getElementById('serverPing');
+ 
+    // UI elements for local drive
+    const driveAccess = document.getElementById('driveAccess');
+    const drivePath = document.getElementById('drivePath');
+    const driveFree = document.getElementById('driveFree');
+    const driveTotal = document.getElementById('driveTotal');
+    const driveProgress = document.getElementById('driveProgress');
+    const drivePercentText = document.getElementById('drivePercentText');
+
+    // UI elements for Google Drive
+    const gdriveStatus = document.getElementById('gdriveStatus');
+    const gdriveAccount = document.getElementById('gdriveAccount');
+    const gdriveUsed = document.getElementById('gdriveUsed');
+    const gdriveTotal = document.getElementById('gdriveTotal');
+    const gdriveProgress = document.getElementById('gdriveProgress');
+    const gdrivePercentText = document.getElementById('gdrivePercentText');
+ 
+    // UI elements for Exporting Reports
+    const exportDateInput = document.getElementById('exportDateInput');
+    const downloadDayReportBtn = document.getElementById('downloadDayReportBtn');
+    const downloadAllReportBtn = document.getElementById('downloadAllReportBtn');
+
+    // Mặc định điền ngày hôm nay (YYYY-MM-DD)
+    const todayStr = new Date().toLocaleDateString('en-CA');
+    if (exportDateInput) {
+      exportDateInput.value = todayStr;
+    }
+ 
+    const API_KEY = 'TL_SECRET_SECURE_API_KEY_2026';
+    let socket = null;
+    let pollInterval = null;
+
+ 
+    function addLog(message, type = 'info') {
+      const entry = document.createElement('div');
+      entry.className = 'log-entry';
+      
+      const timeSpan = document.createElement('span');
+      timeSpan.className = 'log-time';
+      timeSpan.textContent = `[${new Date().toLocaleTimeString()}]`;
+      
+      const textSpan = document.createElement('span');
+      textSpan.textContent = ` ${message}`;
+      
+      if (type === 'error') textSpan.style.color = '#ef4444';
+      if (type === 'success') textSpan.style.color = '#10b981';
+      if (type === 'socket') textSpan.style.color = '#a855f7';
+      
+      entry.appendChild(timeSpan);
+      entry.appendChild(textSpan);
+      
+      logPanel.appendChild(entry);
+      logPanel.scrollTop = logPanel.scrollHeight;
+    }
+ 
+    function formatUptime(seconds) {
+      if (isNaN(seconds)) return '-';
+      const h = Math.floor(seconds / 3600);
+      const m = Math.floor((seconds % 3600) / 60);
+      const s = seconds % 60;
+      return `${h}h ${m}m ${s}s`;
+    }
+ 
+    async function fetchServerStatus(url) {
+      const start = Date.now();
+      try {
+        const healthRes = await fetch(`${url}/api/health`, {
+          headers: { 'X-API-Key': API_KEY }
+        });
+        const latency = Date.now() - start;
+        serverPing.textContent = `${latency} ms`;
+        
+        if (healthRes.ok) {
+          const data = await healthRes.json();
+          serverUptime.textContent = formatUptime(data.uptime);
+          serverHostname.textContent = data.hostname;
+        }
+ 
+        // Fetch drive status
+        const driveRes = await fetch(`${url}/api/drive/status`, {
+          headers: { 'X-API-Key': API_KEY }
+        });
+        if (driveRes.ok) {
+          const driveData = await driveRes.json();
+          drivePath.textContent = driveData.uploadDir;
+          
+          // 1. Cập nhật Local Storage Info
+          if (driveData.accessible) {
+            driveAccess.textContent = 'Có quyền ghi/đọc';
+            driveAccess.className = 'info-value success';
+            driveAccess.style.color = 'var(--success)';
+            driveFree.textContent = `${driveData.disk.freeGB} GB`;
+            driveTotal.textContent = `${driveData.disk.totalGB} GB`;
+            
+            const free = parseFloat(driveData.disk.freeGB);
+            const total = parseFloat(driveData.disk.totalGB);
+            if (total > 0) {
+              const used = total - free;
+              const usedPercent = ((used / total) * 100).toFixed(1);
+              driveProgress.style.width = `${usedPercent}%`;
+              drivePercentText.textContent = `Đã sử dụng ${usedPercent}% (${(used).toFixed(2)} GB / ${total} GB)`;
+            }
+          } else {
+            driveAccess.textContent = `Không có quyền`;
+            driveAccess.className = 'info-value';
+            driveAccess.style.color = 'var(--danger)';
+            driveProgress.style.width = '0%';
+            drivePercentText.textContent = 'Lỗi truy cập';
+          }
+
+          // 2. Cập nhật Google Drive Info
+          if (driveData.drive && driveData.drive.connected) {
+            gdriveStatus.textContent = 'Hoạt động';
+            gdriveStatus.className = 'info-value success';
+            gdriveStatus.style.color = 'var(--success)';
+            gdriveAccount.textContent = driveData.drive.email || driveData.drive.user || 'Đã liên kết';
+            gdriveUsed.textContent = driveData.drive.quota.usage;
+            gdriveTotal.textContent = driveData.drive.quota.limit;
+            
+            const percentStr = driveData.drive.quota.percent || '0%';
+            gdriveProgress.style.width = percentStr;
+            gdrivePercentText.textContent = `Đã sử dụng ${percentStr}`;
+          } else if (driveData.drive && driveData.drive.mode === 'mock') {
+            gdriveStatus.textContent = 'Giả lập (Offline)';
+            gdriveStatus.className = 'info-value';
+            gdriveStatus.style.color = 'var(--warning)';
+            gdriveAccount.textContent = 'Chưa cấu hình Service Account';
+            gdriveUsed.textContent = '0 GB';
+            gdriveTotal.textContent = '15 GB';
+            gdriveProgress.style.width = '0%';
+            gdrivePercentText.textContent = 'Lưu trữ offline cục bộ';
+          } else {
+            gdriveStatus.textContent = 'Lỗi kết nối';
+            gdriveStatus.className = 'info-value';
+            gdriveStatus.style.color = 'var(--danger)';
+            gdriveAccount.textContent = driveData.drive?.message || 'Mất kết nối API';
+            gdriveUsed.textContent = '-';
+            gdriveTotal.textContent = '-';
+            gdriveProgress.style.width = '0%';
+            gdrivePercentText.textContent = 'Kiểm tra cấu hình Google API';
+          }
+        }
+      } catch (err) {
+        serverPing.textContent = '-';
+        serverUptime.textContent = '-';
+        serverHostname.textContent = '-';
+        
+        driveAccess.textContent = 'Mất kết nối';
+        driveAccess.className = 'info-value';
+        driveAccess.style.color = 'var(--danger)';
+        driveProgress.style.width = '0%';
+        drivePercentText.textContent = '-';
+
+        gdriveStatus.textContent = 'Ngoại tuyến';
+        gdriveStatus.className = 'info-value';
+        gdriveStatus.style.color = 'var(--danger)';
+        gdriveAccount.textContent = '-';
+        gdriveUsed.textContent = '-';
+        gdriveTotal.textContent = '-';
+        gdriveProgress.style.width = '0%';
+        gdrivePercentText.textContent = '-';
+      }
+    }
+ 
+    function initConnection() {
+      const url = serverUrlInput.value.trim();
+      if (!url) return;
+ 
+      if (socket) {
+        socket.disconnect();
+        addLog('Đang ngắt kết nối cũ...');
+      }
+ 
+      if (pollInterval) {
+        clearInterval(pollInterval);
+      }
+ 
+      addLog(`Đang kết nối đến Socket.io: ${url}...`);
+ 
+      socket = io(url, {
+        reconnectionAttempts: 5,
+        timeout: 5000,
+        auth: {
+          token: API_KEY
+        }
+      });
+ 
+      socket.on('connect', () => {
+        serverBadge.className = 'server-badge online';
+        serverStatusText.textContent = 'Đã kết nối';
+        addLog(`Kết nối socket thành công. ID: ${socket.id}`, 'success');
+        
+        // Đăng ký nhận toàn bộ broadcast sự kiện
+        socket.emit('join_order', '*'); // Nghe sự kiện chung
+        
+        // Fetch initially and then start polling server metrics
+        fetchServerStatus(url);
+        pollInterval = setInterval(() => fetchServerStatus(url), 5000);
+      });
+ 
+      socket.on('disconnect', () => {
+        serverBadge.className = 'server-badge';
+        serverStatusText.textContent = 'Đã ngắt kết nối';
+        addLog('Mất kết nối với Socket server', 'error');
+        if (pollInterval) clearInterval(pollInterval);
+      });
+ 
+      socket.on('connect_error', (err) => {
+        serverBadge.className = 'server-badge';
+        serverStatusText.textContent = 'Lỗi kết nối';
+        addLog(`Lỗi kết nối Socket: ${err.message}`, 'error');
+        if (pollInterval) clearInterval(pollInterval);
+      });
+
+      // ── Socket event listeners để vẽ nhật ký realtime ─────────────────────
+      
+      // Lắng nghe sự kiện cập nhật đơn hàng
+      socket.on('order_updated', (data) => {
+        const changes = data.changes || {};
+        let logMsg = `Đơn [ID: ${data.orderId}]`;
+        if (changes.soKy) logMsg += ` - Cân nặng: ${changes.soKy} kg`;
+        if (changes.trangThai) logMsg += ` - Trạng thái: ${changes.trangThai}`;
+        
+        addLog(`[REALTIME] ${logMsg}`, 'socket');
+        fetchServerStatus(url); // Cập nhật lại dung lượng ổ đĩa & drive
+      });
+ 
+      // Lắng nghe tiến trình upload file
+      socket.on('upload_progress', (data) => {
+        addLog(`[REALTIME] Đang tải lên: ${data.fileName} - Tiến độ: ${data.progress}%`, 'info');
+      });
+
+      // Lắng nghe hoàn tất upload file local
+      socket.on('upload_done', (data) => {
+        addLog(`[REALTIME] File đã lưu cục bộ: ${data.fileName} - Bắt đầu đồng bộ Cloud.`, 'success');
+      });
+
+      // Lắng nghe tạo folder drive
+      socket.on('drive_folder_created', (data) => {
+        addLog(`[REALTIME] Đã tạo thư mục Google Drive: ID ${data.driveFolderId}`, 'success');
+      });
+
+      // Lắng nghe đang đồng bộ drive
+      socket.on('drive_syncing', (data) => {
+        addLog(`[REALTIME] Đang đồng bộ lên Google Drive: ${data.fileName}`, 'info');
+      });
+
+      // Lắng nghe đồng bộ drive thành công
+      socket.on('drive_synced', (data) => {
+        addLog(`[REALTIME] Đã đồng bộ Google Drive thành công: ${data.fileName}`, 'success');
+        fetchServerStatus(url);
+      });
+
+      // Lắng nghe lỗi đồng bộ drive
+      socket.on('sync_error', (data) => {
+        addLog(`[REALTIME LỖI] Lỗi đồng bộ file ${data.fileName}: ${data.message}`, 'error');
+      });
+
+      socket.on('server_status', (data) => {
+        addLog(`[HỆ THỐNG] Broadcast trạng thái máy chủ: ${data.status.toUpperCase()}`, 'info');
+      });
+    }
+
+    // ── TAB NAVIGATION LOGIC ───────────────────────────────────────────────────
+    const tabButtons = document.querySelectorAll('.tab-btn');
+    const tabContents = document.querySelectorAll('.tab-content');
+
+    tabButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const targetTab = btn.getAttribute('data-tab');
+        
+        tabButtons.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        
+        tabContents.forEach(content => {
+          if (content.id === targetTab) {
+            content.classList.add('active');
+          } else {
+            content.classList.remove('active');
+          }
+        });
+        
+        if (targetTab === 'tab-users') {
+          const url = serverUrlInput.value.trim();
+          loadUsersList(url);
+        } else if (targetTab === 'tab-uploads') {
+          loadUploadsList();
+        }
+      });
+    });
+
+    // ── UPLOADS FOLDER MONITOR LOGIC ───────────────────────────────────────────
+    const uploadsTableBody = document.getElementById('uploadsTableBody');
+    const refreshUploadsBtn = document.getElementById('refreshUploadsBtn');
+
+    if (refreshUploadsBtn) {
+      refreshUploadsBtn.addEventListener('click', loadUploadsList);
+    }
+
+    async function loadUploadsList() {
+      const fs = require('fs');
+      const path = require('path');
+
+      let uploadsPath = path.resolve(__dirname, '../server/upload');
+      if (!fs.existsSync(uploadsPath)) {
+        uploadsPath = path.resolve(__dirname, '../server/uploads');
+      }
+      if (!fs.existsSync(uploadsPath)) {
+        uploadsPath = path.resolve(__dirname, 'server/upload');
+      }
+      if (!fs.existsSync(uploadsPath)) {
+        uploadsPath = path.resolve(__dirname, 'server/uploads');
+      }
+      if (!fs.existsSync(uploadsPath)) {
+        uploadsPath = path.resolve('./server/upload');
+      }
+      if (!fs.existsSync(uploadsPath)) {
+        uploadsPath = path.resolve('./server/uploads');
+      }
+
+      console.log('Scanning uploads directory:', uploadsPath);
+
+      if (!fs.existsSync(uploadsPath)) {
+        uploadsTableBody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 2rem; color: var(--danger);">Không tìm thấy thư mục upload tại: ${uploadsPath}</td></tr>`;
+        return;
+      }
+
+      try {
+        const items = fs.readdirSync(uploadsPath);
+        const folders = items.filter(item => {
+          const itemPath = path.join(uploadsPath, item);
+          return fs.statSync(itemPath).isDirectory();
+        });
+
+        const listData = [];
+        for (const folder of folders) {
+          const barcodeMatch = folder.match(/\d{10,12}/);
+          if (!barcodeMatch) continue;
+          
+          const barcode = barcodeMatch[0];
+          const folderPathAbs = path.join(uploadsPath, folder);
+          const filesInFolder = fs.readdirSync(folderPathAbs);
+
+          // 1. Quét tìm cân nặng
+          let weight = '2.0'; // mặc định
+          const txtFile = filesInFolder.find(f => f.toLowerCase().endsWith('.txt'));
+          if (txtFile) {
+            try {
+              const txtContent = fs.readFileSync(path.join(folderPathAbs, txtFile), 'utf8');
+              const kgMatch = txtContent.match(/(Số ký|Cân nặng|Trọng lượng|soKy|weight|mass)\s*:\s*(\d+(\.\d+)?)/i);
+              if (kgMatch) {
+                weight = kgMatch[2];
+              } else {
+                const matches = txtContent.match(/(\d+(\.\d+)?)/g);
+                if (matches) {
+                  const validWeight = matches.find(num => num.length < 5);
+                  if (validWeight) weight = validWeight;
+                }
+              }
+            } catch (e) {
+              console.error('Error reading weight file:', e);
+            }
+          } else {
+            const weightMatch = folder.match(/_(\d+(\.\d+)?)/);
+            if (weightMatch) {
+              weight = weightMatch[1];
+            }
+          }
+
+          // 2. Đếm số file media
+          const allowedExts = ['.jpg', '.jpeg', '.png', '.webp', '.pdf', '.mp4', '.mov', '.3gp', '.avi', '.mpeg', '.webm'];
+          const mediaFiles = filesInFolder.filter(f => {
+            const ext = path.extname(f).toLowerCase();
+            return allowedExts.includes(ext);
+          });
+
+          listData.push({
+            barcode,
+            weight,
+            filesCount: mediaFiles.length,
+            folderPathAbs
+          });
+        }
+
+        renderUploadsTable(listData);
+      } catch (err) {
+        uploadsTableBody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 2rem; color: var(--danger);">Lỗi quét thư mục: ${err.message}</td></tr>`;
+      }
+    }
+
+    function renderUploadsTable(listData) {
+      if (listData.length === 0) {
+        uploadsTableBody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 2rem; color: var(--text-muted); font-size: 0.9rem;">Không có thư mục đơn hàng nào trong uploads.</td></tr>`;
+        return;
+      }
+
+      uploadsTableBody.innerHTML = '';
+      listData.forEach((item, index) => {
+        const tr = document.createElement('tr');
+        tr.style.borderBottom = '1px solid rgba(255,255,255,0.03)';
+        tr.style.height = '54px';
+
+        // 1. STT
+        const sttTd = document.createElement('td');
+        sttTd.style.padding = '0.75rem 1rem';
+        sttTd.style.fontSize = '0.9rem';
+        sttTd.style.color = 'var(--text-muted)';
+        sttTd.textContent = index + 1;
+        tr.appendChild(sttTd);
+
+        // 2. Mã vận đơn
+        const barcodeTd = document.createElement('td');
+        barcodeTd.style.padding = '0.75rem 1rem';
+        
+        const barcodeText = document.createElement('span');
+        barcodeText.style.fontWeight = '700';
+        barcodeText.style.color = '#f8fafc';
+        barcodeText.style.marginRight = '12px';
+        barcodeText.style.fontSize = '0.95rem';
+        barcodeText.textContent = item.barcode;
+        
+        const copyBarcodeBtn = document.createElement('button');
+        copyBarcodeBtn.style.cssText = `
+          background: rgba(56, 189, 248, 0.1);
+          color: #38bdf8;
+          border: 1px solid rgba(56, 189, 248, 0.2);
+          padding: 0.3rem 0.6rem;
+          border-radius: 6px;
+          font-size: 0.75rem;
+          font-weight: 700;
+          cursor: pointer;
+          transition: all 0.2s;
+        `;
+        copyBarcodeBtn.textContent = 'Copy';
+        copyBarcodeBtn.addEventListener('click', () => {
+          navigator.clipboard.writeText(item.barcode);
+          copyBarcodeBtn.textContent = 'Đã copy!';
+          copyBarcodeBtn.style.background = 'rgba(16, 185, 129, 0.2)';
+          copyBarcodeBtn.style.color = '#10b981';
+          copyBarcodeBtn.style.borderColor = 'rgba(16, 185, 129, 0.3)';
+          setTimeout(() => {
+            copyBarcodeBtn.textContent = 'Copy';
+            copyBarcodeBtn.style.cssText = `
+              background: rgba(56, 189, 248, 0.1);
+              color: #38bdf8;
+              border: 1px solid rgba(56, 189, 248, 0.2);
+              padding: 0.3rem 0.6rem;
+              border-radius: 6px;
+              font-size: 0.75rem;
+              font-weight: 700;
+              cursor: pointer;
+            `;
+          }, 1500);
+        });
+
+        barcodeTd.appendChild(barcodeText);
+        barcodeTd.appendChild(copyBarcodeBtn);
+        tr.appendChild(barcodeTd);
+
+        // 3. Số Ký
+        const weightTd = document.createElement('td');
+        weightTd.style.padding = '0.75rem 1rem';
+        
+        const weightText = document.createElement('span');
+        weightText.style.fontWeight = '700';
+        weightText.style.color = '#fbbf24';
+        weightText.style.marginRight = '12px';
+        weightText.style.fontSize = '0.95rem';
+        weightText.textContent = `${item.weight} kg`;
+        
+        const copyWeightBtn = document.createElement('button');
+        copyWeightBtn.style.cssText = `
+          background: rgba(251, 191, 36, 0.1);
+          color: #fbbf24;
+          border: 1px solid rgba(251, 191, 36, 0.2);
+          padding: 0.3rem 0.6rem;
+          border-radius: 6px;
+          font-size: 0.75rem;
+          font-weight: 700;
+          cursor: pointer;
+          transition: all 0.2s;
+        `;
+        copyWeightBtn.textContent = 'Copy';
+        copyWeightBtn.addEventListener('click', () => {
+          navigator.clipboard.writeText(item.weight);
+          copyWeightBtn.textContent = 'Đã copy!';
+          copyWeightBtn.style.background = 'rgba(16, 185, 129, 0.2)';
+          copyWeightBtn.style.color = '#10b981';
+          copyWeightBtn.style.borderColor = 'rgba(16, 185, 129, 0.3)';
+          setTimeout(() => {
+            copyWeightBtn.textContent = 'Copy';
+            copyWeightBtn.style.cssText = `
+              background: rgba(251, 191, 36, 0.1);
+              color: #fbbf24;
+              border: 1px solid rgba(251, 191, 36, 0.2);
+              padding: 0.3rem 0.6rem;
+              border-radius: 6px;
+              font-size: 0.75rem;
+              font-weight: 700;
+              cursor: pointer;
+            `;
+          }, 1500);
+        });
+
+        weightTd.appendChild(weightText);
+        weightTd.appendChild(copyWeightBtn);
+        tr.appendChild(weightTd);
+
+        // 4. Số tệp
+        const filesTd = document.createElement('td');
+        filesTd.style.padding = '0.75rem 1rem';
+        filesTd.style.fontSize = '0.9rem';
+        filesTd.innerHTML = `<span style="color: #a7f3d0; font-weight: 600;">📁 ${item.filesCount} tệp</span>`;
+        tr.appendChild(filesTd);
+
+        // 5. Thao tác
+        const actionsTd = document.createElement('td');
+        actionsTd.style.padding = '0.75rem 1rem';
+        actionsTd.style.textAlign = 'right';
+        actionsTd.style.display = 'flex';
+        actionsTd.style.gap = '8px';
+        actionsTd.style.justifyContent = 'flex-end';
+
+        // Nút 1: Mở thư mục
+        const openFolderBtn = document.createElement('button');
+        openFolderBtn.style.cssText = `
+          background: rgba(255, 255, 255, 0.08);
+          color: #f8fafc;
+          border: 1px solid rgba(255, 255, 255, 0.15);
+          padding: 0.4rem 0.8rem;
+          border-radius: 0.5rem;
+          font-size: 0.8rem;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.2s;
+        `;
+        openFolderBtn.innerHTML = '📂 Mở thư mục';
+        openFolderBtn.addEventListener('click', () => {
+          const { shell } = require('electron');
+          shell.openPath(item.folderPathAbs);
+        });
+
+        // Nút 2: Mở JMS
+        const openJmsBtn = document.createElement('button');
+        openJmsBtn.style.cssText = `
+          background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+          color: white;
+          border: none;
+          padding: 0.4rem 0.8rem;
+          border-radius: 0.5rem;
+          font-size: 0.8rem;
+          font-weight: 700;
+          cursor: pointer;
+          box-shadow: 0 4px 6px -1px rgba(234, 88, 12, 0.2);
+        `;
+        openJmsBtn.innerHTML = '🚚 Mở JMS';
+        openJmsBtn.addEventListener('click', () => {
+          const { shell } = require('electron');
+          shell.openExternal('https://jms.jtexpress.vn/app/recordmanagement/returnWeightChange?&menuId=306');
+        });
+
+        actionsTd.appendChild(openFolderBtn);
+        actionsTd.appendChild(openJmsBtn);
+        tr.appendChild(actionsTd);
+
+        tr.addEventListener('mouseenter', () => {
+          tr.style.backgroundColor = 'rgba(255,255,255,0.02)';
+        });
+        tr.addEventListener('mouseleave', () => {
+          tr.style.backgroundColor = 'transparent';
+        });
+
+        uploadsTableBody.appendChild(tr);
+      });
+    }
+
+    // ── EMPLOYEE MANAGER LOGIC ──────────────────────────────────────────────────
+    const usersTableBody = document.getElementById('usersTableBody');
+    const userCountBadge = document.getElementById('userCountBadge');
+    const addUserForm = document.getElementById('addUserForm');
+    const newUserName = document.getElementById('newUserName');
+    const newUserShift = document.getElementById('newUserShift');
+    const newUserPin = document.getElementById('newUserPin');
+
+    async function loadUsersList(url) {
+      try {
+        const res = await fetch(`${url}/api/users`, {
+          headers: { 'X-API-Key': API_KEY }
+        });
+        if (res.ok) {
+          const body = await res.json();
+          renderUsersTable(body.data);
+        } else {
+          usersTableBody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 2rem; color: var(--danger);">Không thể lấy danh sách nhân viên từ SQLite Server.</td></tr>`;
+        }
+      } catch (err) {
+        usersTableBody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 2rem; color: var(--danger);">Lỗi kết nối khi tải danh sách nhân viên: ${err.message}</td></tr>`;
+      }
+    }
+
+    function renderUsersTable(usersList) {
+      userCountBadge.textContent = `${usersList.length} nhân viên`;
+      
+      if (usersList.length === 0) {
+        usersTableBody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 2rem; color: var(--text-muted);">Chưa có nhân viên nào đăng ký tài khoản.</td></tr>`;
+        return;
+      }
+
+      usersTableBody.innerHTML = '';
+      usersList.forEach(user => {
+        const tr = document.createElement('tr');
+        tr.style.borderBottom = '1px solid rgba(255,255,255,0.03)';
+        tr.style.height = '48px';
+        
+        const nameTd = document.createElement('td');
+        nameTd.style.padding = '0.75rem 1rem';
+        nameTd.style.fontWeight = '600';
+        nameTd.textContent = user.name;
+        
+        const shiftTd = document.createElement('td');
+        shiftTd.style.padding = '0.75rem 1rem';
+        shiftTd.innerHTML = user.shift === 'ca_sang' 
+          ? `<span style="color: var(--warning); font-weight:600;">☀️ Ca Sáng</span>` 
+          : `<span style="color: #818cf8; font-weight:600;">🌙 Ca Đêm</span>`;
+          
+        const pinTd = document.createElement('td');
+        pinTd.style.padding = '0.75rem 1rem';
+        pinTd.style.fontFamily = 'monospace';
+        pinTd.style.fontSize = '0.95rem';
+        pinTd.style.color = '#38bdf8';
+        pinTd.textContent = user.pin;
+        
+        const dateTd = document.createElement('td');
+        dateTd.style.padding = '0.75rem 1rem';
+        dateTd.style.color = 'var(--text-muted)';
+        dateTd.textContent = new Date(user.createdAt).toLocaleDateString('vi-VN');
+        
+        const actionTd = document.createElement('td');
+        actionTd.style.padding = '0.75rem 1rem';
+        actionTd.style.textAlign = 'right';
+        
+        const deleteBtn = document.createElement('button');
+        deleteBtn.style.backgroundColor = 'rgba(239, 68, 68, 0.15)';
+        deleteBtn.style.color = 'var(--danger)';
+        deleteBtn.style.padding = '0.35rem 0.75rem';
+        deleteBtn.style.borderRadius = '0.5rem';
+        deleteBtn.style.fontSize = '0.8rem';
+        deleteBtn.style.border = '1px solid rgba(239, 68, 68, 0.2)';
+        deleteBtn.style.cursor = 'pointer';
+        deleteBtn.style.fontWeight = '600';
+        deleteBtn.textContent = 'Xóa';
+        deleteBtn.addEventListener('click', () => deleteUserAccount(user.id, user.name));
+        
+        actionTd.appendChild(deleteBtn);
+        
+        tr.appendChild(nameTd);
+        tr.appendChild(shiftTd);
+        tr.appendChild(pinTd);
+        tr.appendChild(dateTd);
+        tr.appendChild(actionTd);
+        
+        usersTableBody.appendChild(tr);
+      });
+    }
+
+    async function deleteUserAccount(userId, userName) {
+      const confirmDelete = confirm(`Bạn có chắc chắn muốn xóa nhân viên "${userName}" khỏi hệ thống?`);
+      if (!confirmDelete) return;
+
+      const url = serverUrlInput.value.trim();
+      try {
+        const response = await fetch(`${url}/api/users/${userId}`, {
+          method: 'DELETE',
+          headers: { 'X-API-Key': API_KEY }
+        });
+        const resData = await response.json();
+        if (response.ok && resData.ok) {
+          addLog(`[HỆ THỐNG] Đã xóa nhân viên: ${userName}`, 'success');
+          loadUsersList(url);
+        } else {
+          alert(`Lỗi: ${resData.message || 'Không thể xóa nhân viên này.'}`);
+        }
+      } catch (err) {
+        alert(`Lỗi kết nối khi xóa nhân viên: ${err.message}`);
+      }
+    }
+
+    addUserForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const name = newUserName.value.trim();
+      const shift = newUserShift.value;
+      const pin = newUserPin.value.trim();
+
+      if (!name || !shift || !pin) {
+        alert('Vui lòng điền đầy đủ thông tin nhân viên!');
+        return;
+      }
+
+      if (pin.length !== 4 || isNaN(Number(pin))) {
+        alert('Mã PIN đăng nhập phải có đúng 4 chữ số!');
+        return;
+      }
+
+      const url = serverUrlInput.value.trim();
+      try {
+        const response = await fetch(`${url}/api/users`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-API-Key': API_KEY
+          },
+          body: JSON.stringify({ name, shift, pin })
+        });
+        
+        const resData = await response.json();
+        if (response.ok && resData.ok) {
+          addLog(`[HỆ THỐNG] Đã tạo thành công nhân viên mới: ${name}`, 'success');
+          addUserForm.reset();
+          loadUsersList(url);
+        } else {
+          alert(`Lỗi: ${resData.message || 'Không thể tạo nhân viên mới.'}`);
+        }
+      } catch (err) {
+        alert(`Lỗi kết nối khi tạo nhân viên mới: ${err.message}`);
+      }
+    });
+
+    // ── EXPORT REPORT EVENTS ────────────────────────────────────────────────────
+    if (downloadDayReportBtn) {
+      downloadDayReportBtn.addEventListener('click', () => {
+        const dateVal = exportDateInput.value;
+        if (!dateVal) {
+          alert('Vui lòng chọn ngày nghiệp vụ cần xuất báo cáo!');
+          return;
+        }
+        
+        const serverUrl = serverUrlInput.value.trim();
+        const downloadUrl = `${serverUrl}/api/orders/export?date=${dateVal}`;
+        
+        addLog(`[HỆ THỐNG] Đang yêu cầu xuất báo cáo ngày nghiệp vụ ${dateVal}...`, 'info');
+        triggerDownload(downloadUrl);
+      });
+    }
+
+    if (downloadAllReportBtn) {
+      downloadAllReportBtn.addEventListener('click', () => {
+        const serverUrl = serverUrlInput.value.trim();
+        const downloadUrl = `${serverUrl}/api/orders/export`;
+        
+        addLog('[HỆ THỐNG] Đang yêu cầu xuất toàn bộ đơn hàng...', 'info');
+        triggerDownload(downloadUrl);
+      });
+    }
+
+    function triggerDownload(url) {
+      // Thêm tham số apiKey để vượt qua authenticateApiKey middleware
+      const fullUrl = `${url}${url.includes('?') ? '&' : '?'}apiKey=${API_KEY}`;
+      
+      const a = document.createElement('a');
+      a.href = fullUrl;
+      a.download = '';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
+
+    // ── BATCH FOLDER IMPORTER LOGIC ─────────────────────────────────────────────
+    const importSourceFolder = document.getElementById('importSourceFolder');
+    const importDefaultWeight = document.getElementById('importDefaultWeight');
+    const startImportBtn = document.getElementById('startImportBtn');
+    const importStatusLogs = document.getElementById('importStatusLogs');
+
+    if (startImportBtn) {
+      startImportBtn.addEventListener('click', handleImport);
+    }
+
+    async function handleImport() {
+      const folderPath = importSourceFolder.value.trim();
+      const defaultWeight = parseFloat(importDefaultWeight.value.trim()) || 2.0;
+      
+      if (!folderPath) {
+        alert('Vui lòng nhập đường dẫn thư mục nguồn!');
+        return;
+      }
+
+      const fs = require('fs');
+      const path = require('path');
+
+      if (!fs.existsSync(folderPath)) {
+        alert('Thư mục nguồn không tồn tại! Vui lòng kiểm tra lại đường dẫn.');
+        return;
+      }
+
+      startImportBtn.disabled = true;
+      startImportBtn.textContent = '⏳ Đang quét & nhập...';
+      importStatusLogs.innerHTML = '';
+
+      const addImportLog = (msg, isSuccess = true) => {
+        const line = document.createElement('div');
+        line.style.color = isSuccess ? '#10b981' : '#f87171';
+        line.style.fontSize = '0.85rem';
+        line.style.lineHeight = '1.4';
+        line.innerHTML = `<span style="color: #64748b; margin-right: 6px;">[${new Date().toLocaleTimeString()}]</span> ${msg}`;
+        importStatusLogs.appendChild(line);
+        importStatusLogs.scrollTop = importStatusLogs.scrollHeight;
+      };
+
+      addImportLog(`📂 Khởi động quét thư mục: <b>${folderPath}</b>`);
+
+      try {
+        const items = fs.readdirSync(folderPath);
+        const subfolders = items.filter(item => {
+          const itemPath = path.join(folderPath, item);
+          return fs.statSync(itemPath).isDirectory();
+        });
+
+        addImportLog(`📋 Đã tìm thấy <b>${subfolders.length} thư mục con</b> bên trong.`);
+
+        let successCount = 0;
+
+        for (const folder of subfolders) {
+          // Trích xuất mã vận đơn (10-12 số liên tiếp)
+          const barcodeMatch = folder.match(/\d{10,12}/);
+          if (!barcodeMatch) {
+            addImportLog(`⚠️ Thư mục "${folder}" không đúng cấu trúc mã vận đơn. Bỏ qua.`, false);
+            continue;
+          }
+          const barcode = barcodeMatch[0];
+
+          // Xác định cân nặng
+          let weight = defaultWeight;
+          // Cách A: format thư mục dạng _cân_nặng (ví dụ: 861721784028_10.8)
+          const weightMatch = folder.match(/_(\d+(\.\d+)?)/);
+          if (weightMatch) {
+            weight = parseFloat(weightMatch[1]);
+          } else {
+            // Cách B: đọc file txt bên trong thư mục con
+            const folderPathAbs = path.join(folderPath, folder);
+            const filesInFolder = fs.readdirSync(folderPathAbs);
+            const txtFile = filesInFolder.find(f => f.toLowerCase().endsWith('.txt'));
+            if (txtFile) {
+              try {
+                const txtContent = fs.readFileSync(path.join(folderPathAbs, txtFile), 'utf8');
+                // Regex tìm kiếm thông minh: Tìm số đi kèm sau nhãn "Số ký" hoặc "Cân nặng" hoặc "Trọng lượng"
+                const kgMatch = txtContent.match(/(Số ký|Cân nặng|Trọng lượng|soKy|weight|mass)\s*:\s*(\d+(\.\d+)?)/i);
+                if (kgMatch) {
+                  weight = parseFloat(kgMatch[2]);
+                } else {
+                  // Fallback: Tìm số thập phân đầu tiên mà không phải là mã vận đơn (mã vận đơn thường có 10-12 số)
+                  const matches = txtContent.match(/(\d+(\.\d+)?)/g);
+                  if (matches) {
+                    const validWeight = matches.find(num => num.length < 5); // Cân nặng thực tế thường ngắn (dưới 5 ký tự)
+                    if (validWeight) weight = parseFloat(validWeight);
+                  }
+                }
+              } catch (e) {}
+            }
+          }
+
+          addImportLog(`⚙️ Đang xử lý Đơn: <b>${barcode}</b> | Cân nặng: <b>${weight} kg</b>...`);
+
+          const url = serverUrlInput.value.trim();
+
+          // 1. Gửi request tạo đơn hàng
+          try {
+            const orderRes = await fetch(`${url}/api/orders`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'X-API-Key': API_KEY
+              },
+              body: JSON.stringify({
+                maVanDon: barcode,
+                soKy: weight,
+                ghiChu: 'Nhập hàng loạt từ thư mục',
+                recordedBy: 'Admin Import',
+                shift: 'ca_sang',
+                businessDate: new Date().toLocaleDateString('en-CA')
+              })
+            });
+
+            if (!orderRes.ok && orderRes.status !== 409) {
+              throw new Error(`Tạo đơn thất bại (HTTP ${orderRes.status})`);
+            }
+
+            // 2. Upload các file media đính kèm
+            const folderPathAbs = path.join(folderPath, folder);
+            const filesInFolder = fs.readdirSync(folderPathAbs);
+            
+            const allowedExts = ['.jpg', '.jpeg', '.png', '.webp', '.pdf', '.mp4', '.mov', '.3gp', '.avi', '.mpeg', '.webm'];
+            const mediaFiles = filesInFolder.filter(f => {
+              const ext = path.extname(f).toLowerCase();
+              return allowedExts.includes(ext);
+            });
+
+            if (mediaFiles.length > 0) {
+              const formData = new FormData();
+              
+              for (const file of mediaFiles) {
+                const fileAbs = path.join(folderPathAbs, file);
+                const fileBuffer = fs.readFileSync(fileAbs);
+                const fileObj = new File([fileBuffer], file, { type: getMimeType(file) });
+                formData.append('files', fileObj);
+              }
+
+              const uploadRes = await fetch(`${url}/api/orders/${barcode}/files`, {
+                method: 'POST',
+                headers: {
+                  'X-API-Key': API_KEY
+                },
+                body: formData
+              });
+
+              if (!uploadRes.ok) {
+                throw new Error(`Upload ảnh/video thất bại (HTTP ${uploadRes.status})`);
+              }
+            }
+
+            addImportLog(`✅ Nhập thành công Đơn: <b>${barcode}</b> với <b>${mediaFiles.length} file</b> minh chứng!`, true);
+            successCount++;
+          } catch (err) {
+            addImportLog(`❌ Thất bại Đơn ${barcode}: ${err.message}`, false);
+          }
+        }
+
+        addImportLog(`🏁 Hoàn tất nhập hàng loạt! Đã nhập thành công <b>${successCount}/${subfolders.length} đơn hàng</b>.`, true);
+        addLog(`[HỆ THỐNG] Đã nhập hàng loạt thành công ${successCount}/${subfolders.length} đơn từ thư mục.`, 'success');
+      } catch (err) {
+        addImportLog(`❌ Lỗi hệ thống: ${err.message}`, false);
+      } finally {
+        startImportBtn.disabled = false;
+        startImportBtn.textContent = '🚀 QUÉT & NHẬP VÀO HỆ THỐNG';
+      }
+    }
+
+    // Helper xác định nhanh MIME type
+    function getMimeType(fileName) {
+      const ext = fileName.split('.').pop().toLowerCase();
+      const mimeTypes = {
+        'jpg': 'image/jpeg',
+        'jpeg': 'image/jpeg',
+        'png': 'image/png',
+        'webp': 'image/webp',
+        'pdf': 'application/pdf',
+        'mp4': 'video/mp4',
+        'mov': 'video/quicktime',
+        'avi': 'video/x-msvideo',
+        '3gp': 'video/3gpp'
+      };
+      return mimeTypes[ext] || 'application/octet-stream';
+    }
+
+    connectBtn.addEventListener('click', initConnection);
+
+    // Tự động kết nối lần đầu
+    window.addEventListener('DOMContentLoaded', () => {
+      initConnection();
+    });
+  </script>
+</body>
+</html>

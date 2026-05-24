@@ -1,0 +1,77 @@
+{
+  "expo": {
+    "name": "TrongLuong",
+    "slug": "trongluong",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.nguyenchuong10.app",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Ứng dụng cần truy cập Camera để quét barcode mã vận đơn và chụp ảnh hàng hóa đóng gói.",
+        "NSPhotoLibraryUsageDescription": "Ứng dụng cần truy cập Thư viện ảnh để chọn các hình ảnh và video đóng gói tải lên.",
+        "NSPhotoLibraryAddUsageDescription": "Ứng dụng cần quyền lưu ảnh hàng hóa vào thư viện thiết bị.",
+        "NSMicrophoneUsageDescription": "Ứng dụng cần truy cập Micrô để ghi âm khi quay video hàng hóa đóng gói.",
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": true
+        }
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "package": "com.nguyenchuong10.app",
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
+      ]
+    },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Cho phép ứng dụng sử dụng Camera để quét mã vạch đơn hàng và chụp ảnh đóng gói."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Cho phép ứng dụng truy cập thư viện ảnh để chọn hình ảnh và video đóng gói tải lên server.",
+          "savePhotosPermission": "Cho phép ứng dụng lưu hình ảnh và video vào thư viện thiết bị.",
+          "microphonePermission": "Cho phép ứng dụng sử dụng micrô khi quay video đóng gói hàng hóa."
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          }
+        }
+      ]
+    ],
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "4c5c5cf9-eac9-43cc-8626-a41e7cf6fdfb"
+      }
+    },
+    "owner": "nguyenchuong10"
+  }
+}
