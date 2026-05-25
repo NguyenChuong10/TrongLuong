@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { StyleSheet, Text, View, Image, FlatList, TouchableOpacity, ScrollView, SafeAreaView, Alert, Dimensions, StatusBar, ActivityIndicator } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { CameraView, useCameraPermissions } from 'expo-camera';
 
 let FileSystem: any = null;
 try {
@@ -178,6 +179,12 @@ export default function UploadScreen() {
   const [selectedFiles, setSelectedFiles] = useState<UploadFile[]>([]);
   const [uploading, setUploading] = useState(false);
   const [syncingDrive, setSyncingDrive] = useState(false);
+  
+  const [showCamera, setShowCamera] = useState(false);
+  const cameraRef = useRef<CameraView>(null);
+  const [cameraPermission, requestCameraPermission] = useCameraPermissions();
+  const [capturing, setCapturing] = useState(false);
+  const [isCameraReady, setIsCameraReady] = useState(false);
 
   useEffect(() => {
     // Connect socket and join this order's specific room
@@ -256,38 +263,62 @@ export default function UploadScreen() {
     }
   };
 
-  // Launch native camera
+  // Launch in-app custom camera overlay
   const capturePhoto = async () => {
     try {
-      const cameraPermission = await ImagePicker.requestCameraPermissionsAsync();
-      if (!cameraPermission.granted) {
-        Alert.alert('Quyền truy cập', 'Vui lòng cấp quyền sử dụng camera trong cài đặt!');
-        return;
+      if (!cameraPermission || !cameraPermission.granted) {
+        const permissionResult = await requestCameraPermission();
+        if (!permissionResult.granted) {
+          Alert.alert('Quyền truy cập', 'Vui lòng cấp quyền sử dụng camera trong cài đặt!');
+          return;
+        }
       }
-
-      const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        quality: 0.5, // Nén ảnh thông minh xuống ~150KB
-      });
-
-      if (!result.canceled && result.assets && result.assets[0]) {
-        const asset = result.assets[0];
-        const uri = asset.uri;
-        const name = uri.substring(uri.lastIndexOf('/') + 1) || `photo_${Date.now()}.jpg`;
-        const newFile: UploadFile = {
-          uri,
-          name,
-          type: asset.mimeType || 'image/jpeg',
-          size: asset.fileSize || 0,
-          progress: 0,
-          status: 'pending',
-        };
-
-        setSelectedFiles(prev => [...prev, newFile]);
-      }
+      setShowCamera(true);
     } catch (e) {
-      console.error('Capturing photo failed:', e);
+      console.error('Request camera permission failed:', e);
       Alert.alert('Lỗi', 'Không thể mở camera chụp ảnh.');
+    }
+  };
+
+  // Capture photo asynchronously and auto-save without closing camera
+  const takePicture = async () => {
+    if (cameraRef.current && !capturing && isCameraReady) {
+      setCapturing(true);
+      try {
+        const photo = await cameraRef.current.takePictureAsync({ quality: 0.5 });
+        if (photo && photo.uri) {
+          const uri = photo.uri;
+          const name = uri.substring(uri.lastIndexOf('/') + 1) || `photo_${Date.now()}.jpg`;
+          
+          let size = 150000; // default standard compressed image size fallback
+          if (FileSystem && FileSystem.getInfoAsync) {
+            try {
+              const fileInfo = await FileSystem.getInfoAsync(uri);
+              if (fileInfo.exists) {
+                size = fileInfo.size || size;
+              }
+            } catch (fsErr) {
+              console.warn('[Camera] Lỗi lấy kích thước file từ FileSystem:', fsErr);
+            }
+          }
+
+          const newFile: UploadFile = {
+            uri,
+            name,
+            type: 'image/jpeg',
+            size,
+            progress: 0,
+            status: 'pending',
+          };
+
+          setSelectedFiles(prev => [...prev, newFile]);
+        }
+      } catch (e) {
+        console.error('Take picture failed:', e);
+        Alert.alert('Lỗi', 'Không thể chụp ảnh.');
+      } finally {
+        setCapturing(false);
+      }
     }
   };
 
@@ -348,7 +379,7 @@ export default function UploadScreen() {
         const tokenDataStr = await AsyncStorage.getItem('@trongluong:gdrive_access_token');
         const parentFolderId = await AsyncStorage.getItem('@trongluong:gdrive_parent_folder_id') || '0AIw9-Tyyr5vWUk9PVA';
         
-        let token = null;
+        let token: string | null = null;
         if (tokenDataStr) {
           const tokenData = JSON.parse(tokenDataStr);
           if (Date.now() - tokenData.timestamp < 50 * 60 * 1000) {
@@ -357,15 +388,16 @@ export default function UploadScreen() {
         }
 
         if (token) {
+          const accessToken = token;
           // A. SERVER OFF + MẠNG ON (Có 4G/Wi-Fi) -> Upload trực tiếp Google Drive
           setSyncingDrive(true);
           
           let targetFolderId = parentFolderId;
           if (businessDate) {
             console.log(`[GDrive direct] Phát hiện ngày nghiệp vụ: ${businessDate}. Đang tạo/tìm thư mục ngày...`);
-            targetFolderId = await findOrCreateGDriveFolder(businessDate, parentFolderId, token);
+            targetFolderId = await findOrCreateGDriveFolder(businessDate, parentFolderId, accessToken);
           }
-          const folderId = await findOrCreateGDriveFolder(maVanDon, targetFolderId, token);
+          const folderId = await findOrCreateGDriveFolder(maVanDon, targetFolderId, accessToken);
           const uploadedFilesList: any[] = [];
 
           const uploadPromises = selectedFiles.map(async (file, index) => {
@@ -376,11 +408,11 @@ export default function UploadScreen() {
                 file.name, 
                 file.type, 
                 folderId, 
-                token, 
+                accessToken, 
                 (percent) => updateFileState(index, { progress: percent })
               );
 
-              await setGDriveFilePublic(driveFile.id, token);
+              await setGDriveFilePublic(driveFile.id, accessToken);
               updateFileState(index, { status: 'done', progress: 100 });
               
               uploadedFilesList.push({
@@ -553,6 +585,75 @@ export default function UploadScreen() {
       })
     );
   };
+
+  if (showCamera) {
+    return (
+      <View style={styles.cameraContainer}>
+        <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
+        
+        {/* Native CameraView rendered with no children to avoid native preview re-renders */}
+        <CameraView 
+          ref={cameraRef} 
+          facing="back" 
+          style={StyleSheet.absoluteFillObject}
+          onCameraReady={() => setIsCameraReady(true)}
+        />
+        
+        {/* Full-screen Overlay positioned absolutely on top */}
+        <View style={StyleSheet.absoluteFillObject} pointerEvents="box-none">
+          <View style={styles.cameraOverlay}>
+            {/* Header */}
+            <View style={styles.cameraHeader}>
+              <TouchableOpacity 
+                style={styles.closeCameraBtn} 
+                onPress={() => {
+                  setShowCamera(false);
+                  setIsCameraReady(false);
+                }}
+              >
+                <Text style={styles.closeCameraText}>✕ Xong</Text>
+              </TouchableOpacity>
+              <View style={styles.photoCountBadge}>
+                <Text style={styles.photoCountText}>Đã chụp: {selectedFiles.length} ảnh</Text>
+              </View>
+            </View>
+
+            {/* Bottom Actions */}
+            <View style={styles.cameraFooter}>
+              {/* Mini Preview */}
+              <View style={styles.miniPreviewContainer}>
+                {selectedFiles.length > 0 ? (
+                  <Image 
+                    source={{ uri: selectedFiles[selectedFiles.length - 1].uri }} 
+                    style={styles.miniPreviewImage} 
+                  />
+                ) : (
+                  <View style={styles.miniPreviewPlaceholder}>
+                    <Text style={styles.miniPreviewPlaceholderText}>Trống</Text>
+                  </View>
+                )}
+              </View>
+
+              {/* Shutter Button - disabled if camera not ready or is capturing */}
+              <TouchableOpacity 
+                style={[
+                  styles.captureBtn, 
+                  (!isCameraReady || capturing) && { opacity: 0.5 }
+                ]} 
+                onPress={takePicture}
+                disabled={!isCameraReady || capturing}
+              >
+                <View style={styles.captureBtnInner} />
+              </TouchableOpacity>
+
+              {/* Balance spacer */}
+              <View style={styles.miniPreviewPlaceholder} />
+            </View>
+          </View>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -872,5 +973,100 @@ const styles = StyleSheet.create({
     backgroundColor: '#cbd5e1',
     shadowOpacity: 0,
     elevation: 0,
+  },
+  cameraContainer: {
+    flex: 1,
+    backgroundColor: '#000',
+  },
+  cameraOverlay: {
+    flex: 1,
+    justifyContent: 'space-between',
+    paddingTop: 50,
+    paddingBottom: 40,
+    backgroundColor: 'rgba(0,0,0,0.15)',
+  },
+  cameraHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  closeCameraBtn: {
+    backgroundColor: 'rgba(15, 23, 42, 0.75)',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+  },
+  closeCameraText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  photoCountBadge: {
+    backgroundColor: '#6366f1',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+  },
+  photoCountText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  cameraFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 30,
+  },
+  captureBtn: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    borderWidth: 5,
+    borderColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  captureBtnInner: {
+    width: 62,
+    height: 62,
+    borderRadius: 31,
+    backgroundColor: '#6366f1',
+  },
+  miniPreviewContainer: {
+    width: 54,
+    height: 54,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: '#fff',
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    overflow: 'hidden',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  miniPreviewImage: {
+    width: '100%',
+    height: '100%',
+  },
+  miniPreviewPlaceholder: {
+    width: 54,
+    height: 54,
+  },
+  miniPreviewPlaceholderText: {
+    color: 'rgba(255,255,255,0.4)',
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  flashOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: '#fff',
+    zIndex: 9999,
   },
 });

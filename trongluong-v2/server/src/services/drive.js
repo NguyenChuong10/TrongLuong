@@ -16,43 +16,74 @@ let authClient = null
 function initDrive() {
   if (driveClient) return driveClient
 
-  const keyString = config.GOOGLE_SERVICE_ACCOUNT_KEY
   const parentFolderId = config.DRIVE_FOLDER_ID
+  const clientId = config.GOOGLE_CLIENT_ID
+  const clientSecret = config.GOOGLE_CLIENT_SECRET
+  const refreshToken = config.GOOGLE_REFRESH_TOKEN
+  const serviceAccountKey = config.GOOGLE_SERVICE_ACCOUNT_KEY
 
-  if (!keyString || !parentFolderId) {
-    console.warn('\n⚠️  [Google Drive] Chưa cấu hình GOOGLE_SERVICE_ACCOUNT_KEY hoặc DRIVE_FOLDER_ID trong .env!')
+  if (!parentFolderId) {
+    console.warn('\n⚠️  [Google Drive] Chưa cấu hình DRIVE_FOLDER_ID trong .env!')
     console.warn('⚠️  [Google Drive] Tự động kích hoạt chế độ GIẢ LẬP (Mock Mode). File sẽ chỉ lưu offline trên disk.\n')
     isMockMode = true
     return null
   }
 
-  try {
-    let credentials
-    // Kiểm tra xem keyString là đường dẫn file vật lý hay chuỗi JSON trực tiếp
-    if (fs.existsSync(keyString)) {
-      const fileContent = fs.readFileSync(keyString, 'utf8')
-      credentials = JSON.parse(fileContent)
-    } else {
-      credentials = JSON.parse(keyString)
+  // 🌟 ƯU TIÊN 1: Kết nối dạng OAuth2 (Gmail cá nhân 15GB)
+  if (clientId && clientSecret && refreshToken) {
+    try {
+      const oauth2Client = new google.auth.OAuth2(
+        clientId,
+        clientSecret,
+        `http://localhost:${config.PORT}/oauth2callback`
+      )
+      oauth2Client.setCredentials({
+        refresh_token: refreshToken
+      })
+
+      authClient = oauth2Client
+      driveClient = google.drive({ version: 'v3', auth: oauth2Client })
+      isMockMode = false
+      console.log('✅ [Google Drive] Khởi tạo kết nối Google API OAuth2 (Gmail cá nhân) thành công!')
+      return driveClient
+    } catch (oauthErr) {
+      console.error('❌ [Google Drive] Lỗi kết nối OAuth2:', oauthErr.message)
     }
-
-    const auth = new google.auth.JWT(
-      credentials.client_email,
-      null,
-      credentials.private_key,
-      ['https://www.googleapis.com/auth/drive']
-    )
-
-    authClient = auth
-    driveClient = google.drive({ version: 'v3', auth })
-    console.log('✅ [Google Drive] Khởi tạo kết nối Google API thành công')
-    return driveClient
-  } catch (error) {
-    console.error('❌ [Google Drive] Lỗi khởi tạo Drive Client:', error.message)
-    console.warn('⚠️  [Google Drive] Tự động chuyển sang chế độ GIẢ LẬP (Mock Mode) do lỗi cấu hình.')
-    isMockMode = true
-    return null
   }
+
+  // 🌟 ƯU TIÊN 2: Kết nối dạng Service Account (JWT)
+  if (serviceAccountKey) {
+    try {
+      let credentials
+      if (fs.existsSync(serviceAccountKey)) {
+        const fileContent = fs.readFileSync(serviceAccountKey, 'utf8')
+        credentials = JSON.parse(fileContent)
+      } else {
+        credentials = JSON.parse(serviceAccountKey)
+      }
+
+      const auth = new google.auth.JWT(
+        credentials.client_email,
+        null,
+        credentials.private_key,
+        ['https://www.googleapis.com/auth/drive']
+      )
+
+      authClient = auth
+      driveClient = google.drive({ version: 'v3', auth })
+      isMockMode = false
+      console.log('✅ [Google Drive] Khởi tạo kết nối Google API Service Account thành công')
+      return driveClient
+    } catch (error) {
+      console.error('❌ [Google Drive] Lỗi khởi tạo Service Account Client:', error.message)
+    }
+  }
+
+  // 🌟 MOCK MODE làm dự phòng
+  console.warn('⚠️  [Google Drive] Không tìm thấy cấu hình OAuth2 hợp lệ hoặc Service Account Key trong .env!')
+  console.warn('⚠️  [Google Drive] Tự động chuyển sang chế độ GIẢ LẬP (Mock Mode).')
+  isMockMode = true
+  return null
 }
 
 /**

@@ -42,6 +42,11 @@
       user-select: none;
     }
 
+    input, select, textarea, [contenteditable="true"] {
+      -webkit-user-select: text !important;
+      user-select: text !important;
+    }
+
     /* macOS Window Header Space (for custom draggable titlebars if needed) */
     .titlebar {
       height: 38px;

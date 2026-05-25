@@ -4,7 +4,8 @@
 const fs = require('fs')
 const path = require('path')
 const chokidar = require('chokidar')
-const { default: PQueue } = require('p-queue')
+const PQueueClass = require('p-queue')
+const PQueue = PQueueClass.default || PQueueClass
 const config = require('../config')
 const db = require('../db')
 const driveService = require('./drive')
@@ -116,9 +117,14 @@ async function syncFileToDrive(filePath) {
           await driveService.uploadFile(filePath, mimeType, fileName, driveFolderId)
           console.log(`✅ [Watcher] Đã đồng bộ file cân nặng ${fileName} lên Google Drive`)
           
-          // Cập nhật trạng thái đơn hàng thành hoàn thành nếu không có file đính kèm nào bị lỗi
+          // Cập nhật trạng thái đơn hàng thành hoàn thành nếu có ít nhất 1 file đính kèm và tất cả đã đồng bộ
+          const totalFiles = db.prepare("SELECT COUNT(*) as count FROM files WHERE orderId = ?").get(order.id)
           const unfinishedFiles = db.prepare("SELECT COUNT(*) as count FROM files WHERE orderId = ? AND status != 'synced'").get(order.id)
-          const newStatus = unfinishedFiles.count === 0 ? 'hoan_thanh' : 'dang_xu_ly'
+          
+          let newStatus = order.trangThai
+          if (totalFiles.count > 0) {
+            newStatus = unfinishedFiles.count === 0 ? 'hoan_thanh' : 'dang_xu_ly'
+          }
           
           db.prepare('UPDATE orders SET trangThai = ?, updatedAt = ? WHERE id = ?')
             .run(newStatus, new Date().toISOString(), order.id)
@@ -257,7 +263,43 @@ function startWatcher(io) {
       console.error('❌ [Watcher] Gặp lỗi hệ thống:', error.message)
     })
 
+  // Tự động quét và tiếp tục đồng bộ các đơn hàng dang dở từ DB sau khi khởi động
+  setTimeout(() => {
+    resumePendingSyncs()
+  }, 2000)
+
   return watcherInstance
+}
+
+/**
+ * Quét toàn bộ DB và tự động tiếp tục đồng bộ các đơn hàng chưa hoàn thành
+ */
+async function resumePendingSyncs() {
+  try {
+    const pendingOrders = db.prepare("SELECT * FROM orders WHERE trangThai != 'hoan_thanh'").all()
+    
+    if (pendingOrders.length === 0) {
+      console.log('🌱 [Watcher] Không có đơn hàng cũ nào cần đồng bộ lại.')
+      return
+    }
+
+    console.log(`📬 [Watcher] Phát hiện ${pendingOrders.length} đơn hàng cũ chưa hoàn thành. Đang tự động khôi phục luồng đồng bộ...`)
+    
+    for (const order of pendingOrders) {
+      const folderPath = path.resolve(config.UPLOAD_DIR, order.maVanDon)
+      if (fs.existsSync(folderPath)) {
+        const filesInFolder = fs.readdirSync(folderPath)
+        for (const file of filesInFolder) {
+          if (file.startsWith('.')) continue // bỏ qua file ẩn
+          const filePath = path.join(folderPath, file)
+          // Kích hoạt đồng bộ lại
+          syncFileToDrive(filePath)
+        }
+      }
+    }
+  } catch (err) {
+    console.error('❌ [Watcher] Lỗi khi tự động khôi phục đồng bộ:', err.message)
+  }
 }
 
 /**
@@ -274,5 +316,6 @@ function stopWatcher() {
 module.exports = {
   startWatcher,
   stopWatcher,
-  syncFileToDrive
+  syncFileToDrive,
+  resumePendingSyncs
 }

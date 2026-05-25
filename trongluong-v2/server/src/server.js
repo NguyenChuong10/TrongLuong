@@ -29,6 +29,10 @@ setupSocket(io)
 const { startWatcher, stopWatcher } = require('./services/watcher')
 startWatcher(io)
 
+// Khởi tạo kết nối Google Drive ngay khi khởi động để xác minh cấu hình lập tức
+const { initDrive } = require('./services/drive')
+initDrive()
+
 // Bắt đầu lắng nghe
 httpServer.listen(config.PORT, '0.0.0.0', () => {
   console.log(`\n✅ Server đang chạy tại:`)
